@@ -1,0 +1,52 @@
+name: Run API Tests
+on:
+  push:
+    branches: [master, v2]
+  pull_request:
+    branches: [master, v2]
+
+jobs:
+  # Label of the runner job
+  runner-job:
+    # You must use a Linux environment when using service containers or container jobs
+    runs-on: ubuntu-latest
+
+    # Service containers to run with `runner-job`
+    services:
+      # Label used to access the service container
+      postgres:
+        # Docker Hub image
+        image: postgres
+        # Provide the password for postgres
+        env:
+          POSTGRES_PASSWORD: postgres
+        # Set health checks to wait until postgres has started
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          # Maps tcp port 5432 on service container to the host
+          - 5432:5432
+
+    steps:
+      # Downloads a copy of the code in your repository before running CI tests
+      - name: Check out repository code
+        uses: actions/checkout@v2
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v2
+      - name: Cache node modules
+        uses: actions/cache@v2
+        env:
+          cache-name: cache-node-modules
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
+      - name: Run tests
+        # Runs a script that creates a PostgreSQL table, populates
+        # the table with data, and then retrieves the data
+        run: npm run ci
+        env:
+          # The hostname used to communicate with the PostgreSQL service container
+          DB_TEST_CONFIG: ewogICJ1c2UiOiAicG9zdGdyZXNxbCIsCiAgInBvc3RncmVzcWwiOiB7CiAgICAidXNlciI6ICJwb3N0Z3JlcyIsCiAgICAicHciOiAicG9zdGdyZXMiLAogICAgImhvc3QiOiAibG9jYWxob3N0IiwKICAgICJwb3J0IjogNTQzMiwKICAgICJkYiI6ICJwb3N0Z3JlcyIsCiAgICAibWF4UG9vbFNpemUiOiAxLAogICAgImNvbm5lY3Rpb25UaW1lb3V0TWlsbGlzIjogMTAwMDAsCiAgICAiaWRsZVRpbWVvdXRNaWxsaXMiOiAxMDAwMCwKICAgICJiaWdJbnRBc051bWJlciI6IHRydWUKICB9Cn0=
