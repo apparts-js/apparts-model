@@ -1,6 +1,5 @@
 const { setup, teardown } = require("./tests/database");
 const { useModel } = require("./index.js");
-const { NotUnique, NotFound, DoesExist, IsReference } = require("./errors");
 
 const SETUPDB = `
 CREATE TABLE users (
@@ -71,11 +70,11 @@ const derivedType = {
     derived: async () => new Promise((res) => res("test")),
   },
 };
-const [Models, Model, NoModel] = useModel(type, "users");
-const [Models2, Model2, NoModel2] = useModel(multiKeyType, "users2");
-const [Models3, Model3, NoModel3] = useModel(noAutoType, "users3");
-const [Models4, Model4, NoModel4] = useModel(foreignType, "comment");
-const [Models5, Model5, NoModel5] = useModel(derivedType, "derived");
+const [, Model] = useModel(type, "users");
+const [, Model2] = useModel(multiKeyType, "users2");
+const [, Model3] = useModel(noAutoType, "users3");
+const [, Model4] = useModel(foreignType, "comment");
+const [, Model5] = useModel(derivedType, "derived");
 
 let dbs;
 beforeAll(async () => {
@@ -87,13 +86,13 @@ afterAll(async () => {
 
 describe("OneModel", () => {
   test("creation of one", async () => {
-    let m = new Model(dbs, { test: 1 });
+    const m = new Model(dbs, { test: 1 });
     await expect(m.store()).resolves.toBeTruthy();
     expect(m.content).toMatchObject({ test: 1, id: 1 });
   });
 
   test("creation of one with derived", async () => {
-    let m = new Model5(dbs, { test: 1 });
+    const m = new Model5(dbs, { test: 1 });
     await expect(m.store()).resolves.toBeTruthy();
     expect(m.content).toStrictEqual({ id: 1, test: 1 });
   });
@@ -242,7 +241,7 @@ describe("OneModel", () => {
 
   test("loadById, multi key", async () => {
     const m1 = await new Model2(dbs, { test: 1, a: 7 }).store();
-    const m3 = await new Model2(dbs, { test: 1 }).store();
+    await new Model2(dbs, { test: 1 }).store();
     await new Model2(dbs, { test: 2 }).store();
     const m2 = await new Model2(dbs).loadById({ id: m1.content.id, test: 1 });
 
@@ -318,8 +317,9 @@ Collection: "users2", Keys: "["id","test"]", Id: "{"id":${m1.content.id}}"`,
       a: 99,
     });
     await expect(
-      (await new Model3(dbs).loadById({ email: "test@test.de", name: "Franz" }))
-        .content
+      (
+        await new Model3(dbs).loadById({ email: "test@test.de", name: "Franz" })
+      ).content
     ).toMatchObject({ email: "test@test.de", name: "Franz" });
   });
 
@@ -355,8 +355,9 @@ Collection: "users2", Keys: "["id","test"]", Id: "{"id":${m1.content.id}}"`,
       a: 12,
     }).store();
     await expect(
-      (await new Model3(dbs).load({ name: { op: "like", val: "%ans" } }))
-        .content
+      (
+        await new Model3(dbs).load({ name: { op: "like", val: "%ans" } })
+      ).content
     ).toMatchObject({ email: "test1@test.de", name: "Hans" });
   });
 

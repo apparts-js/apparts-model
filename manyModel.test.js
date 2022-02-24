@@ -1,6 +1,5 @@
 const { setup, teardown } = require("./tests/database");
 const { useModel } = require("./index.js");
-const { NotUnique, NotFound, DoesExist, IsReference } = require("./errors");
 
 const SETUPDB = `
 CREATE TABLE users (
@@ -71,11 +70,11 @@ const derivedType = {
     public: true,
   },
 };
-const [Models, Model, NoModel] = useModel(type, "users");
-const [Models2, Model2, NoModel2] = useModel(multiKeyType, "users2");
-const [Models3, Model3, NoModel3] = useModel(noAutoType, "users3");
-const [Models4, Model4, NoModel4] = useModel(foreignType, "comment");
-const [Models5, Model5, NoModel5] = useModel(derivedType, "derived");
+const [Models, Model] = useModel(type, "users");
+const [Models2, Model2] = useModel(multiKeyType, "users2");
+const [Models3, Model3] = useModel(noAutoType, "users3");
+const [Models4, Model4] = useModel(foreignType, "comment");
+const [Models5] = useModel(derivedType, "derived");
 
 let dbs;
 beforeAll(async () => {
@@ -108,7 +107,7 @@ describe("ManyModel", () => {
   });
 
   test("creation of many with derived", async () => {
-    let m = new Models5(dbs, [{ test: 1 }, { test: 2 }]);
+    const m = new Models5(dbs, [{ test: 1 }, { test: 2 }]);
     await expect(m.store()).resolves.toBeTruthy();
     expect(m.contents).toStrictEqual([
       { id: 1, test: 1 },

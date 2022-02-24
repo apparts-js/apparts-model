@@ -45,7 +45,7 @@ module.exports = (types, collection) => {
 
     async loadById(id) {
       if (typeof id === "object") {
-        let req = {};
+        const req = {};
         if (Object.keys(id).length !== this._keys.length) {
           throw new Error(`[OneModel] loadById not all keys given, E49.
 Collection: "${this._collection}", Keys: "${JSON.stringify(

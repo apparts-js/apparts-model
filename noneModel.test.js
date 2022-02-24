@@ -1,6 +1,5 @@
 const { setup, teardown } = require("./tests/database");
 const { useModel } = require("./index.js");
-const { NotUnique, NotFound, DoesExist, IsReference } = require("./errors");
 
 const SETUPDB = `
 CREATE TABLE users (
@@ -69,11 +68,11 @@ const derivedType = {
     derived: async () => new Promise((res) => res("test")),
   },
 };
-const [Models, Model, NoModel] = useModel(type, "users");
-const [Models2, Model2, NoModel2] = useModel(multiKeyType, "users2");
-const [Models3, Model3, NoModel3] = useModel(noAutoType, "users3");
-const [Models4, Model4, NoModel4] = useModel(foreignType, "comment");
-const [Models5, Model5, NoModel5] = useModel(derivedType, "derived");
+const [, Model, NoModel] = useModel(type, "users");
+const [,] = useModel(multiKeyType, "users2");
+const [,] = useModel(noAutoType, "users3");
+const [,] = useModel(foreignType, "comment");
+const [,] = useModel(derivedType, "derived");
 
 let dbs;
 beforeAll(async () => {
