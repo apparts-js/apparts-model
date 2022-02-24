@@ -1,31 +1,29 @@
 const { Client } = require("pg");
 const connect = require("@apparts/db");
 
-const _DB_CONFIG = require("@apparts/config").get("db-test-config");
-const DB_CONFIG = {
-  ..._DB_CONFIG,
-  postgresql: {
-    ..._DB_CONFIG.postgresql,
-    password: _DB_CONFIG.postgresql.pw,
-  },
-};
+let dbs = null;
 
-let g_pool = null;
+const setup = async (schemas, setupSql, databaseName) => {
+  const { postgresql: pg_config } = {
+    ...require("@apparts/config").get("db-test-config"),
+  };
+  pg_config.db = databaseName;
+  pg_config.database = databaseName;
+  pg_config.password = pg_config.pw;
 
-const setup = async (schemas, setupSql, dbName) => {
   try {
-    await createOrDropDatabase("DROP", DB_CONFIG.postgresql, dbName);
+    await createOrDropDatabase("DROP", pg_config, databaseName);
   } catch (e) {
     console.log("DROP DID NOT WORK", e);
     // Can happen, not a problem
   }
-  await createOrDropDatabase("CREATE", DB_CONFIG.postgresql, dbName);
-  const tempDBConfig = {
-    ...DB_CONFIG.postgresql,
-    db: dbName,
-    database: dbName,
-  };
-  const pool = new Client(tempDBConfig);
+  try {
+    await createOrDropDatabase("CREATE", pg_config, databaseName);
+  } catch (e) {
+    console.log("ERROR", e);
+    throw e;
+  }
+  const pool = new Client(pg_config);
   await pool.connect();
   for (const schema of schemas) {
     await pool.query(schema);
@@ -34,58 +32,58 @@ const setup = async (schemas, setupSql, dbName) => {
     await pool.query(setupSql);
   }
   await pool.end();
-  const dbs = await new Promise((res) => {
-    connect({ use: "postgresql", postgresql: tempDBConfig }, (e, dbs) => {
+  if (dbs) {
+    await new Promise((res) => dbs.shutdown(() => res()));
+  }
+  dbs = await new Promise((res) => {
+    connect({ use: "postgresql", postgresql: pg_config }, (e, newDbs) => {
       if (e) {
         /* istanbul ignore next */
         console.log("DB ERROR");
         throw e;
       }
-      console.log("Connected to DB " + dbName);
-      res(dbs);
+      console.log("Connected to DB for tests");
+      res(newDbs);
     });
   });
-  g_pool = dbs;
-  return g_pool;
+  return dbs;
 };
 
 const getPool = () => {
-  return g_pool;
+  return dbs;
 };
 
 const teardown = async () => {
-  if (g_pool) {
-    await new Promise((res) => g_pool.shutdown(() => res()));
-    g_pool = null;
+  if (dbs) {
+    const tempDbs = dbs;
+    dbs = null;
+    await new Promise((res) => tempDbs.shutdown(() => res()));
   }
 };
 
-const singleEntry = async (dbName, sql) => {
-  const tempDBConfig = { ...DB_CONFIG.postgresql, database: dbName };
-  const pool = new Client(tempDBConfig);
-  await pool.connect();
-  const response = await pool.query(sql);
-  await pool.end();
-  return response;
-};
-
-const createOrDropDatabase = async (action, opts, dbName) => {
-  const config = opts;
+const createOrDropDatabase = async (action, db_config, dbName) => {
+  const config = { ...db_config };
   config.database = "postgres";
 
   const client = new Client(config);
   //disconnect client when all queries are finished
   //  client.on('drain', client.end.bind(client));
-  client.on("error", (err) => {
-    client.end.bind(client);
+  client.on("error", async (err) => {
+    console.log("COULD NOT " + action + " DATABASE " + dbName + ": " + err);
+    await client.end.bind(client);
     throw "COULD NOT " + action + " DATABASE " + dbName + ": " + err;
   });
   await client.connect();
 
   const escapedDbName = dbName.replace(/"/g, '""');
   const sql = action + ' DATABASE "' + escapedDbName + '"';
-  await client.query(sql);
+  try {
+    await client.query(sql);
+  } catch (e) {
+    await client.end();
+    throw e;
+  }
   await client.end();
 };
 
-module.exports = { setup, teardown, singleEntry, getPool };
+module.exports = { setup, teardown, getPool };
