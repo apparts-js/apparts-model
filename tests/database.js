@@ -1,7 +1,14 @@
 const { Client } = require("pg");
 const connect = require("@apparts/db");
 
-const DB_CONFIG = require("@apparts/config").get("db-test-config");
+const _DB_CONFIG = require("@apparts/config").get("db-test-config");
+const DB_CONFIG = {
+  ..._DB_CONFIG,
+  postgresql: {
+    ..._DB_CONFIG.postgresql,
+    password: _DB_CONFIG.postgresql.pw,
+  },
+};
 
 let g_pool = null;
 
