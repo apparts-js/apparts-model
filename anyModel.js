@@ -76,10 +76,6 @@ module.exports = (types, collection) => {
     }
 
     async _update(contents) {
-      if (!this._fromDB) {
-        throw new Error("[AnyModel] update on non-loaded Model, E29");
-      }
-
       const newKeys = contents.map((c) => this._keys.map((key) => c[key]));
       if (
         !(
