@@ -45,7 +45,7 @@ jobs:
       - name: Get npm info
         id: get-npm-published-version
         run: |
-          echo "::set-output name=npmVersion::\"$(npm show ${{steps.get-local-version.outputs.packageName}} version)\""
+          echo "::set-output name=npmVersion::\"$(npm show ${{steps.get-local-version.outputs.packageName}}@${{steps.get-local-version.outputs.packageVersion}} version)\""
         env:
           NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
       - name: Print it
