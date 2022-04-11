@@ -39,19 +39,25 @@ module.exports = (types, collection) => {
       return types;
     }
 
+    getDefaults(values, key) {
+      if (typeof this._types[key].default === "function") {
+        return values.map((c) => ({
+          ...c,
+          [key]: c[key] || this._types[key].default(c),
+        }));
+      } else if (this._types[key].default !== undefined) {
+        return values.map((c) => ({
+          ...c,
+          [key]: c[key] || this._types[key].default,
+        }));
+      } else {
+        return values;
+      }
+    }
+
     _fillInDefaults(values) {
       for (const key in this._types) {
-        if (typeof this._types[key].default === "function") {
-          values = values.map((c) => ({
-            ...c,
-            [key]: c[key] || this._types[key].default(c),
-          }));
-        } else if (this._types[key].default !== undefined) {
-          values = values.map((c) => ({
-            ...c,
-            [key]: c[key] || this._types[key].default,
-          }));
-        }
+        values = this.getDefaults(values, key);
       }
       return values;
     }
