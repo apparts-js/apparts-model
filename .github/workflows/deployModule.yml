@@ -52,7 +52,7 @@ jobs:
         run: |
           echo Local version ${{steps.get-local-version.outputs.packageVersion}}
           echo Remote version ${{steps.get-npm-published-version.outputs.npmVersion}}
-      - run: npm install
+      - run: npm ci
         env:
           NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
       - run: npm publish
