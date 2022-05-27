@@ -1,6 +1,6 @@
 {
   "name": "@apparts/model",
-  "version": "4.6.0",
+  "version": "4.6.1",
   "description": "A model for reading and writing to the database. It stores data.",
   "main": "index.js",
   "scripts": {
