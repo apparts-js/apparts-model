@@ -161,6 +161,7 @@ module.exports = (types, collection) => {
           ...ids[i],
         }));
       }
+      this._loadedKeys = contents.map((c) => this._keys.map((key) => c[key]));
       return contents;
     }
 
