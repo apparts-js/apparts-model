@@ -3,7 +3,7 @@
 const { DoesExist } = require("./errors");
 const useAnyModel = require("./anyModel");
 
-module.exports = (types, collection) => {
+const makeNoneModel = (types, collection) => {
   const AnyModel = useAnyModel(types, collection);
 
   return class NoneModel extends AnyModel {
@@ -25,3 +25,5 @@ module.exports = (types, collection) => {
     }
   };
 };
+
+module.exports = { makeNoneModel };

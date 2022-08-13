@@ -9,7 +9,7 @@ const {
 } = require("./errors");
 const useAnyModel = require("./anyModel");
 
-module.exports = (types, collection) => {
+const makeOneModel = (types, collection) => {
   const AnyModel = useAnyModel(types, collection);
 
   return class OneModel extends AnyModel {
@@ -135,3 +135,5 @@ Collection: "${this._collection}", Keys: "${JSON.stringify(
     }
   };
 };
+
+module.exports = { makeOneModel };

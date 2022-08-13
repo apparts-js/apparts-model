@@ -3,7 +3,7 @@
 const { NotUnique, IsReference, ConstraintFailed } = require("./errors");
 const useAnyModel = require("./anyModel");
 
-module.exports = (types, collection) => {
+const makeManyModel = (types, collection) => {
   const AnyModel = useAnyModel(types, collection);
 
   return class ManyModel extends AnyModel {
@@ -139,3 +139,5 @@ Collection: "${this._collection}", Keys: "${JSON.stringify(
     }
   };
 };
+
+module.exports = { makeManyModel };

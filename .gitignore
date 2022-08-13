@@ -6,6 +6,7 @@
 #project related files
 npm-debug.log
 node_modules/
+build/
 
 #tern files
 .tern-port

@@ -1,7 +1,7 @@
 "use strict";
 const { checkType } = require("@apparts/types");
 
-module.exports = (types, collection) => {
+const makeAnyModel = (types, collection) => {
   return class AnyModel {
     constructor(dbs) {
       this._dbs = dbs;
@@ -269,3 +269,5 @@ module.exports = (types, collection) => {
     }
   };
 };
+
+module.exports = { makeAnyModel };
