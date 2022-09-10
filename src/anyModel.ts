@@ -1,24 +1,48 @@
-"use strict";
-const { checkType } = require("@apparts/types");
+import { GenericDBS, GenericQuery } from "@apparts/db";
+import {
+  checkType,
+  Required,
+  Obj,
+  Type,
+  InferType,
+  InferNotDerivedType,
+  InferPublicType,
+} from "@apparts/types";
 
-const makeAnyModel = (types, collection) => {
+export const makeAnyModel = <TypeSchema extends Obj<Required, any>>({
+  typeSchema,
+  collection,
+}: {
+  typeSchema: TypeSchema;
+  collection: string;
+}) => {
+  type DataComplete = InferType<typeof typeSchema>;
+  type DataWODerived = InferNotDerivedType<typeof typeSchema>;
+  type DataPublic = InferPublicType<typeof typeSchema>;
+
   return class AnyModel {
-    constructor(dbs) {
+    protected _dbs: GenericDBS;
+    protected _fromDB: boolean;
+    protected _collection: string;
+    protected _types: Record<string, Type>;
+    protected _keys: string[];
+    protected _autos: string[];
+    protected _loadedKeys: unknown[][] | undefined;
+    protected _contentWithDerived: DataComplete[] | undefined;
+
+    constructor(dbs: GenericDBS) {
       this._dbs = dbs;
       this._fromDB = false;
       this._collection = collection;
+      const types = typeSchema.getModelType();
       this._types = types;
+
       this._keys = Object.keys(types).filter((key) => types[key].key);
       this._autos = Object.keys(types).filter((key) => types[key].auto);
       const storedValues = Object.keys(types).filter(
-        (key) =>
-          !types[key].auto &&
-          !types[key].derived &&
-          types[key].persisted !== false
+        (key) => !types[key].auto && !types[key].derived
+        /* && types[key].persisted !== false */
       );
-      if (!types) {
-        throw new Error("[AnyModel] No types given");
-      }
       if (this._keys.length === 0) {
         throw new Error("[AnyModel] Types not well defined: No key found");
       }
@@ -27,19 +51,13 @@ const makeAnyModel = (types, collection) => {
           "[AnyModel] Types not well defined: No stored, not generated key found"
         );
       }
-      if (!collection) {
-        throw new Error("[AnyModel] No collection given");
-      }
-      if (!dbs) {
-        throw new Error("[AnyModel] No dbs given");
-      }
     }
 
     static getTypes() {
-      return types;
+      return typeSchema.getModelType();
     }
 
-    getDefaults(values, key) {
+    getDefaults(values: DataWODerived[], key) {
       if (typeof this._types[key].default === "function") {
         return values.map((c) => ({
           ...c,
@@ -55,29 +73,30 @@ const makeAnyModel = (types, collection) => {
       }
     }
 
-    _fillInDefaults(values) {
+    _fillInDefaults(values: DataWODerived[]) {
       for (const key in this._types) {
         values = this.getDefaults(values, key);
       }
       return values;
     }
 
-    async _load(f) {
+    async _load(f: GenericQuery) {
       if (this._fromDB) {
         throw new Error(
-          "[AnyModel] load on already loaded model, Can't load twice"
+          "[AnyModel] load on already loaded model, Refusing to load twice"
         );
       }
-      const cs = await f.toArray();
+      const cs = await f.toArray<DataWODerived>();
       this._fromDB = true;
       const contents = cs.map((c) => this._convertIds(c));
       this._loadedKeys = cs.map((c) => this._keys.map((key) => c[key]));
       return contents;
     }
 
-    async _update(contents) {
+    async _update(contents: DataWODerived[]) {
       const newKeys = contents.map((c) => this._keys.map((key) => c[key]));
       if (
+        !this._loadedKeys ||
         !(
           this._loadedKeys.length === newKeys.length &&
           this._loadedKeys.every((vs, i) =>
@@ -98,14 +117,12 @@ const makeAnyModel = (types, collection) => {
 
       if (contents.length > 1) {
         await Promise.all(contents.map((c) => this._updateOne(c)));
-      } else {
-        if (contents.length > 0) {
-          await this._updateOne(contents[0]);
-        }
+      } else if (contents.length > 0) {
+        await this._updateOne(contents[0]);
       }
     }
 
-    _removeAutos(c) {
+    _removeAutos(c: DataWODerived) {
       const val = { ...c };
       for (const auto of this._autos) {
         delete val[auto];
@@ -113,7 +130,7 @@ const makeAnyModel = (types, collection) => {
       return val;
     }
 
-    _getKeyFilter(c) {
+    _getKeyFilter(c: DataWODerived) {
       const filter = {};
       for (const key of this._keys) {
         filter[key] = c[key];
@@ -121,29 +138,28 @@ const makeAnyModel = (types, collection) => {
       return filter;
     }
 
-    async _updateOne(c) {
+    async _updateOne(c: DataWODerived) {
       await this._dbs
         .collection(this._collection)
         .updateOne(this._getKeyFilter(c), this._removeAutos(c));
     }
 
-    _convertIds(c) {
+    _convertIds(c: DataWODerived) {
       for (const key in this._types) {
         if (!c[key]) {
           continue;
         }
-        if (this._types[key].type === "id") {
+        const fieldType = this._types[key];
+        if ("type" in fieldType && fieldType.type === "id") {
           c[key] = this._dbs.fromId(c[key]);
-        } else if (this._types[key].type === "array_id") {
-          c[key] = c[key].map((v) => this._dbs.fromId(v));
         }
       }
       return c;
     }
 
-    async _store(contents) {
+    async _store(contents: DataWODerived[]): Promise<DataWODerived[]> {
       if (contents.length < 1) {
-        return Promise.resolve();
+        return Promise.resolve([]);
       }
       if (!this._checkTypes(contents)) {
         throw new Error(
@@ -153,7 +169,7 @@ const makeAnyModel = (types, collection) => {
 
       const ids = await this._dbs
         .collection(this._collection)
-        .insert(contents, this._autos, this._autos);
+        .insert(contents, this._autos);
 
       if (ids) {
         contents = contents.map((c, i) => ({
@@ -165,7 +181,7 @@ const makeAnyModel = (types, collection) => {
       return contents;
     }
 
-    _checkTypes(contents) {
+    _checkTypes(contents: DataWODerived[]) {
       for (const c of contents) {
         for (const key in this._types) {
           if (this._autos.indexOf(key) !== -1) {
@@ -173,8 +189,8 @@ const makeAnyModel = (types, collection) => {
           }
           const val = c[key];
           if (
-            this._types[key].derived ||
-            this._types[key].persisted === false
+            this._types[key].derived
+            /* || this._types[key].persisted === false */
           ) {
             delete c[key];
             continue;
@@ -195,79 +211,51 @@ const makeAnyModel = (types, collection) => {
       return true;
     }
 
-    async _generateDerived(contents, types) {
-      this._derived = await Promise.all(
+    async _getWithDerived(contents: DataWODerived[]): Promise<DataComplete[]> {
+      if (this._contentWithDerived) {
+        return this._contentWithDerived;
+      }
+
+      const types = this._types;
+      const derivedData = await Promise.all(
         contents.map(async (c) => {
-          const ret = {};
+          const ret = { ...c };
           for (const key in types) {
-            if (types[key].derived) {
-              ret[key] = await types[key].derived(c, this);
+            const { derived } = types[key];
+            if (derived) {
+              ret[key] = await derived(c, this);
             }
           }
           return ret;
         })
       );
+      this._contentWithDerived = derivedData;
+      return derivedData;
     }
 
-    _getPublicWithTypes(contents, types, single) {
-      let hasName = false;
-      for (const key in types) {
-        if (types[key].name) {
-          if (hasName) {
-            throw new Error("[AnyModel] Multiple Names specified");
-          }
-          hasName = true;
-        }
-      }
+    async _getPublicWithTypes(
+      contents: DataWODerived[]
+    ): Promise<DataPublic[]> {
+      const contentsDerived = await this._getWithDerived(contents);
 
-      let retObj = {};
-      if (!hasName) {
-        retObj = [];
-      }
-      let counter = 0;
-      for (const c of contents) {
-        const obj = {};
+      const types = this._types;
+      const retArr: DataPublic[] = [];
+      for (const c of contentsDerived) {
+        const obj: Record<string, unknown> = {};
         for (const key in types) {
-          let val = c[key];
-          if (types[key].derived) {
-            if (!this._derived) {
-              throw new Error(
-                "[AnyModel] getPublic called without generating derived first."
-              );
-            }
-            val = this._derived[counter][key];
-          }
+          const val = c[key];
           if (types[key].public && val !== undefined && val !== null) {
-            if (types[key].mapped) {
-              obj[types[key].mapped] = val;
+            const { mapped } = types[key];
+            if (mapped) {
+              obj[mapped] = val;
             } else {
               obj[key] = val;
             }
           }
-          if (types[key].name) {
-            if (types[key].groupBy) {
-              retObj[val] = retObj[val] || [];
-              retObj[val].push(obj);
-            } else {
-              retObj[val] = obj;
-            }
-          }
         }
-        if (!hasName) {
-          retObj.push(obj);
-        }
-        counter++;
+        retArr.push(obj);
       }
-      if (single) {
-        if (!hasName) {
-          return retObj[0];
-        } else {
-          return retObj[Object.keys(retObj)[0]];
-        }
-      }
-      return retObj;
+      return retArr;
     }
   };
 };
-
-module.exports = { makeAnyModel };

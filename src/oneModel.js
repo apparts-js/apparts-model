@@ -7,10 +7,10 @@ const {
   IsReference,
   ConstraintFailed,
 } = require("./errors");
-const useAnyModel = require("./anyModel");
+const { makeAnyModel } = require("./anyModel");
 
 const makeOneModel = (types, collection) => {
-  const AnyModel = useAnyModel(types, collection);
+  const AnyModel = makeAnyModel(types, collection);
 
   return class OneModel extends AnyModel {
     constructor(dbs, content) {

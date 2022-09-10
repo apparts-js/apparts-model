@@ -1,13 +1,16 @@
-"use strict";
+import { GenericDBS } from "@apparts/db";
+import { Required, Obj } from "@apparts/types";
+import { DoesExist } from "./errors";
+import { makeAnyModel } from "./anyModel";
 
-const { DoesExist } = require("./errors");
-const useAnyModel = require("./anyModel");
-
-const makeNoneModel = (types, collection) => {
-  const AnyModel = useAnyModel(types, collection);
+export const makeNoneModel = <TypeSchema extends Obj<Required, any>>(props: {
+  typeSchema: TypeSchema;
+  collection: string;
+}) => {
+  const AnyModel = makeAnyModel(props);
 
   return class NoneModel extends AnyModel {
-    constructor(dbs) {
+    constructor(dbs: GenericDBS) {
       super(dbs);
     }
 
@@ -25,5 +28,3 @@ const makeNoneModel = (types, collection) => {
     }
   };
 };
-
-module.exports = { makeNoneModel };

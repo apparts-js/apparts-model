@@ -10,9 +10,27 @@ module.exports = {
   },
   overrides: [
     {
-      files: ["*.test.js"],
+      files: ["*.test.js", "**/tests/**"],
       env: {
         jest: true,
+      },
+    },
+    {
+      files: ["*.ts"],
+      plugins: ["@typescript-eslint", "jest"],
+      extends: [
+        "eslint:recommended",
+        "plugin:@typescript-eslint/eslint-recommended",
+        "plugin:@typescript-eslint/recommended",
+        "prettier",
+      ],
+      parser: "@typescript-eslint/parser",
+      parserOptions: {
+        project: "tsconfig.json",
+        sourceType: "module",
+      },
+      rules: {
+        "@typescript-eslint/no-explicit-any": "off",
       },
     },
   ],
@@ -21,6 +39,9 @@ module.exports = {
     "prefer-const": "error",
     "no-unneeded-ternary": "error",
     "prefer-arrow-callback": "error",
-    "@typescript-eslint/no-explicit-any": 0,
+    "no-lonely-if": "error",
+    "consistent-return": ["error", { treatUndefinedAsUnspecified: false }],
+    curly: "error",
+    "@typescript-eslint/no-explicit-any": "off",
   },
 };
