@@ -1,103 +1,31 @@
+const { SETUPDB } = require("./tests/databaseSetup");
+import {
+  type,
+  multiKeyType,
+  noAutoType,
+  foreignType,
+  derivedType,
+  defaultType,
+} from "./tests/testTypes";
 const { setup, teardown } = require("./tests/database");
-const { useModel } = require("./index.js");
+const { useModel } = require("./index");
 const { UnexpectedModelError, TypeMissmatchError } = require("./errors");
 
-const SETUPDB = `
-CREATE TABLE users (
-  id SERIAL PRIMARY KEY,
-  test INT NOT NULL,
-  a INT
-);
-
-CREATE TABLE users2 (
-  id SERIAL NOT NULL,
-  test INT NOT NULL,
-  a INT,
-  PRIMARY KEY (id, test)
-);
-
-CREATE TABLE users3 (
-  email VARCHAR(128) NOT NULL,
-  name VARCHAR(128) NOT NULL,
-  a INT,
-  PRIMARY KEY (name, email)
-);
-
-CREATE TABLE comment (
-  id SERIAL NOT NULL,
-  userid INT NOT NULL,
-  comment TEXT,
-  PRIMARY KEY (id, userid),
-  FOREIGN KEY (userid) REFERENCES users(id)
-);
-
-CREATE TABLE derived (
-  id SERIAL PRIMARY KEY,
-  test INT NOT NULL
-);
-
-CREATE TABLE wdefault (
-  id SERIAL PRIMARY KEY,
-  "hasDefault" INT NOT NULL,
-  "hasDefaultFn" INT NOT NULL,
-  "objWithDefault" JSON NOT NULL
-);
-`;
-
-const type = {
-  id: { type: "id", key: true, auto: true },
-  test: { type: "int" },
-  a: { type: "int", optional: true },
-};
-const multiKeyType = {
-  id: { type: "id", key: true, auto: true },
-  test: { type: "int", key: true },
-  a: { type: "int", optional: true },
-};
-const noAutoType = {
-  email: { type: "email", key: true },
-  name: { type: "string", key: true },
-  a: { type: "int", optional: true },
-};
-const foreignType = {
-  id: { type: "id", key: true, auto: true },
-  userid: { type: "id", key: true },
-  comment: { type: "string", optional: true },
-};
-const derivedType = {
-  id: { type: "id", key: true, auto: true },
-  test: { type: "int", public: true },
-  derivedId: {
-    type: "id",
-    derived: (c) => c.id,
-    public: true,
-  },
-  derivedAsync: {
-    type: "string",
-    derived: async () => new Promise((res) => res("test")),
-    public: true,
-  },
-};
-
-const defaultType = {
-  id: { type: "id", key: true, auto: true },
-  hasDefault: { type: "int", default: 3 },
-  hasDefaultFn: { type: "int", default: () => 4 },
-  objWithDefault: {
-    type: "object",
-    keys: {
-      deepHasDefault: { type: "string", default: "inner" },
-      deepHasDefaultFn: { type: "string", default: () => "inner fn" },
-    },
-  },
-};
-
-const Models = useModel(type, "users");
-const Models2 = useModel(multiKeyType, "users2");
-const Models3 = useModel(noAutoType, "users3");
-const Models4 = useModel(foreignType, "comment");
-const Models5 = useModel(derivedType, "derived");
-const Models6 = useModel(defaultType, "wdefault");
+const Models = useModel({ typeSchema: type, collection: "users" });
+const Models2 = useModel({
+  typeSchema: multiKeyType,
+  collection: "users2",
+});
+const Models3 = useModel({
+  typeSchema: noAutoType,
+  collection: "users3",
+});
+const Models4 = useModel({
+  typeSchema: foreignType,
+  collection: "comment",
+});
+const Models5 = useModel({ typeSchema: derivedType, collection: "derived" });
+const Models6 = useModel({ typeSchema: defaultType, collection: "wdefault" });
 
 let dbs;
 beforeAll(async () => {
@@ -108,12 +36,6 @@ afterAll(async () => {
 });
 
 describe("Creation", () => {
-  test("creation of one", async () => {
-    await expect(() => new Models(dbs, { test: 1 })).toThrow({
-      message: "[ManyModel], contents should be an array",
-    });
-  });
-
   test("creation of many", async () => {
     const m = new Models(dbs, [{ test: 1 }, { test: 2, a: 3 }]);
     await expect(m.store()).resolves.toBe(m);
@@ -626,13 +548,6 @@ describe("Multi key", () => {
 });
 
 describe("Get public", () => {
-  test("getPublic with derived but not generated", async () => {
-    const m2 = await new Models5(dbs).load({ test: 1 });
-    await expect(() => m2.getPublic()).toThrow(
-      "[AnyModel] getPublic called without generating derived first."
-    );
-  });
-
   test("getPublic with derived", async () => {
     const m1 = await new Models5(dbs, [
       {
@@ -643,8 +558,6 @@ describe("Get public", () => {
       },
     ]).store();
     const m2 = await new Models5(dbs).load({ test: 100 });
-    await m1.generateDerived();
-    await m2.generateDerived();
     const publicVals1 = await m1.getPublic();
     const publicVals2 = await m2.getPublic();
     expect(publicVals1).toStrictEqual([

@@ -30,26 +30,13 @@
   "author": "Philipp Uhl",
   "license": "UNLICENSED",
   "peerDependencies": {
-    "@apparts/types": "^7.6.0"
-  },
-  "jest": {
-    "testTimeout": 10000,
-    "watchPathIgnorePatterns": [
-      "/\\.#.*",
-      "/.*~",
-      "/#.*#"
-    ],
-    "clearMocks": true,
-    "coveragePathIgnorePatterns": [
-      "<rootDir>/node_modules/",
-      "<rootDir>/tests"
-    ]
+    "@apparts/types": "^9.5.0"
   },
   "devDependencies": {
     "@apparts/config": "^1.2.3",
     "@apparts/db": "^3.7.0",
-    "@apparts/types": "^7.7.0",
     "@apparts/error": "^1.0.3",
+    "@apparts/types": "^9.5.0",
     "@tsconfig/node14": "^1.0.3",
     "@types/jest": "^28.1.6",
     "@types/node": "^18.7.2",

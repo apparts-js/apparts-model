@@ -1,25 +1,42 @@
-"use strict";
-
-const {
-  NotFound,
+import { GenericDBS } from "@apparts/db";
+import {
+  InferType,
+  InferNotDerivedType,
+  Required,
+  Obj,
+  HasType,
+} from "@apparts/types";
+import {
+  UnexpectedModelError,
   NotUnique,
   IsReference,
   ConstraintFailed,
-  UnexpectedModelError,
   DoesExist,
-} = require("./errors");
-const useAnyModel = require("./anyModel");
+  NotFound,
+} from "./errors";
+import { makeAnyModel } from "./anyModel";
 
-module.exports = (types, collection) => {
-  const AnyModel = useAnyModel(types, collection);
+export const makeManyModel = <TypeSchema extends Obj<Required, any>>({
+  typeSchema,
+  collection,
+}: {
+  typeSchema: TypeSchema;
+  collection: string;
+}) => {
+  const AnyModel = makeAnyModel({ typeSchema, collection });
+
+  type DataComplete = InferType<typeof typeSchema>;
 
   return class ManyModel extends AnyModel {
-    constructor(dbs, contents) {
+    contents: InferNotDerivedType<typeof typeSchema>[];
+
+    // TODO: Should contents really be Partial?
+    constructor(
+      dbs: GenericDBS,
+      contents: Partial<InferNotDerivedType<typeof typeSchema>>[]
+    ) {
       super(dbs);
       if (contents) {
-        if (!Array.isArray(contents)) {
-          throw new Error("[ManyModel], contents should be an array");
-        }
         this.contents = this._fillInDefaults(contents);
       } else {
         this.contents = [];
@@ -40,7 +57,7 @@ module.exports = (types, collection) => {
         this._dbs.collection(this._collection).find(filter, 2)
       );
       if (something) {
-        throw new NotUnique(this._collection, filter, content, something);
+        throw new NotUnique(this._collection, { filter, content, something });
       } else if (!content) {
         throw new NotFound(this._collection, filter);
       }
@@ -71,7 +88,7 @@ Collection: "${this._collection}", Keys: "${JSON.stringify(
           )}", Id: "${JSON.stringify(ids)}"`);
         }
         this._keys.forEach((key) => {
-          if (this._types[key].type === "id") {
+          if ((this._types[key] as HasType).type === "id") {
             if (Array.isArray(ids[key])) {
               req[key] = ids[key].map((id) => this._dbs.toId(id));
             } else {
@@ -109,11 +126,11 @@ Collection: "${this._collection}", Keys: "${JSON.stringify(
         this.contents = await this._store(this.contents);
       } catch (err) {
         // MONGO
-        if (err._code === 1) {
+        if ((err as Record<string, any>)?._code === 1) {
           throw new NotUnique(this._collection, {
             triedToStore: this.contents,
           });
-        } else if (err._code === 3) {
+        } else if ((err as Record<string, any>)?._code === 3) {
           throw new ConstraintFailed(this._collection, this.contents);
         } else {
           throw new UnexpectedModelError("[ManyModel]", err);
@@ -143,7 +160,7 @@ Collection: "${this._collection}", Keys: "${JSON.stringify(
 
     async deleteAll() {
       if (this.length() == 0) {
-        return;
+        return this;
       }
       const filter = {};
       for (const key of this._keys) {
@@ -152,7 +169,7 @@ Collection: "${this._collection}", Keys: "${JSON.stringify(
       try {
         await this._dbs.collection(this._collection).remove(filter);
       } catch (err) {
-        if (err._code === 2) {
+        if ((err as Record<string, any>)?._code === 2) {
           throw new IsReference(this._collection, this.contents);
         } else {
           throw new UnexpectedModelError("[ManyModel]", err);
@@ -161,12 +178,12 @@ Collection: "${this._collection}", Keys: "${JSON.stringify(
       return this;
     }
 
-    getPublic() {
-      return this._getPublicWithTypes(this.contents, this._types, false);
+    async getPublic() {
+      return await this._getPublicWithTypes(this.contents);
     }
 
-    async generateDerived() {
-      return this._generateDerived(this.contents, this._types, true);
+    async getWithDerived(): Promise<DataComplete[]> {
+      return await this._getWithDerived(this.contents);
     }
   };
 };

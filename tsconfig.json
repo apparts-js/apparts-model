@@ -11,7 +11,7 @@
     "noUnusedParameters": false,
     "noImplicitAny": false,
     "noImplicitThis": false,
-    "strictNullChecks": false
+    "strictNullChecks": true
   },
   "extends": "@tsconfig/node14/tsconfig.json",
   "include": ["src/index.ts", "src/**/*.ts"],

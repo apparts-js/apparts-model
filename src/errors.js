@@ -73,9 +73,7 @@ class UnexpectedModelError extends Error {
     super(
       model +
         " Unexpected error in store: " +
-        (err instanceof Error
-          ? { ...err, message: err.message, stack: err.stack }
-          : err)
+        (err instanceof Error ? err.message : err)
     );
   }
 }

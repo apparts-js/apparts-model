@@ -1,0 +1,30 @@
+
+
+- deep fillInDefaults
+- relations, by passing in other models and how they relate
+  #+BEGIN_SRC js
+    useModel({
+      type,
+      relations: {
+      // pass it the filter, to load by
+        useOtherModel: (content) => ({ id: content.otherModelId })
+      }
+    }, collectionName)
+  #+END_SRC
+  - Use these relations to allow @apparts/model-api to return what has
+    to be deleted cascadingly
+- export ManyModel and extend it (CustomModel)
+  - pass it into makeModel
+  - OneModel derives CustomModel
+  - makeModel returns OneModel, NoneModel
+- storeOrUpdate function
+- pass Context obj instead of dbs obj?
+  - Context = { dbs: GenericDBS, log, ...}
+- Remove all console.logs
+- Improve interface of makeModel
+
+*TODOS:*
+- [X] transform anyModel to TS
+- [X] transform manyModel to TS
+- [X] type of public? how to do? (return type of getPublic)
+- [ ] how to do oneModel inheritance?
