@@ -22,9 +22,28 @@
   - Context = { dbs: GenericDBS, log, ...}
 - Remove all console.logs
 - Improve interface of makeModel
+- Store derived values? (If you only update data through the model,
+  and the derived values are computed on change/store, they will
+  always be correct)
+  - Advantage: You can sort and filter by them
+  - Disadvantage: might not work for everything. I.e. if derived value
+    is calculated based on other resources, too
 
 *TODOS:*
 - [X] transform anyModel to TS
 - [X] transform manyModel to TS
 - [X] type of public? how to do? (return type of getPublic)
 - [ ] how to do oneModel inheritance?
+
+
+Sandwich model:
+
+- anyModel -> manyModel [-> customModel] -> oneModel [-> customOneModel]
+- anyModel -> customModel -> manyModel
+                          -> oneModel
+  - does not make sense, as you cannot overwrite anything on manyModel
+
+
+- different call structure in one/manyModel:
+  - getPublic
+  - getWithDerived

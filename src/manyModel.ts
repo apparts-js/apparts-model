@@ -25,15 +25,13 @@ export const makeManyModel = <TypeSchema extends Obj<Required, any>>({
 }) => {
   const AnyModel = makeAnyModel({ typeSchema, collection });
 
-  type DataComplete = InferType<typeof typeSchema>;
-
   return class ManyModel extends AnyModel {
     contents: InferNotDerivedType<typeof typeSchema>[];
 
     // TODO: Should contents really be Partial?
     constructor(
       dbs: GenericDBS,
-      contents: Partial<InferNotDerivedType<typeof typeSchema>>[]
+      contents: Partial<InferNotDerivedType<TypeSchema>>[]
     ) {
       super(dbs);
       if (contents) {
@@ -172,7 +170,7 @@ Collection: "${this._collection}", Keys: "${JSON.stringify(
       return await this._getPublicWithTypes(this.contents);
     }
 
-    async getWithDerived(): Promise<DataComplete[]> {
+    async getWithDerived(): Promise<InferType<TypeSchema>[]> {
       return await this._getWithDerived(this.contents);
     }
   };
