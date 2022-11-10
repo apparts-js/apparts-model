@@ -1,6 +1,11 @@
 "use strict";
 
-const { NotUnique, IsReference, ConstraintFailed } = require("./errors");
+const {
+  NotUnique,
+  IsReference,
+  ConstraintFailed,
+  UnexpectedModelError,
+} = require("./errors");
 const useAnyModel = require("./anyModel");
 
 module.exports = (types, collection) => {
@@ -83,8 +88,7 @@ Collection: "${this._collection}", Keys: "${JSON.stringify(
         } else if (err._code === 3) {
           throw new ConstraintFailed(this._collection, this.contents);
         } else {
-          console.log(err);
-          throw new Error("[OneModel] Unexpected error in store: ");
+          throw new UnexpectedModelError("[ManyModel]", err);
         }
       }
       return this;
@@ -123,8 +127,7 @@ Collection: "${this._collection}", Keys: "${JSON.stringify(
         if (err._code === 2) {
           throw new IsReference(this._collection, this.contents);
         } else {
-          console.log(err);
-          throw new Error("[OneModel] Unexpected error in store: ");
+          throw new UnexpectedModelError("[ManyModel]", err);
         }
       }
       return this;

@@ -1,6 +1,8 @@
 "use strict";
 const { checkType } = require("@apparts/types");
 
+const { TypeMissmatchError, UnexpectedModelError } = require("./errors");
+
 module.exports = (types, collection) => {
   return class AnyModel {
     constructor(dbs) {
@@ -85,16 +87,17 @@ module.exports = (types, collection) => {
           )
         )
       ) {
-        console.log("E46:", contents, this._loadedKeys, newKeys);
-        throw new Error(
-          "[AnyModel] tried to update but IDs did not match loaded IDs, E46"
+        throw new UnexpectedModelError(
+          "[AnyModel]",
+          "tried to update but IDs did not match loaded IDs. Contents: " +
+            JSON.stringify(contents, undefined, 2) +
+            " Loaded keys: " +
+            JSON.stringify(this._loadedKeys, undefined, 2) +
+            " New keys: " +
+            JSON.stringify(newKeys, undefined, 2)
         );
       }
-      if (!this._checkTypes(contents)) {
-        throw new Error(
-          "[AnyModel] type-constraints not met: " + JSON.stringify(contents)
-        );
-      }
+      this._checkTypes(contents);
 
       if (contents.length > 1) {
         await Promise.all(contents.map((c) => this._updateOne(c)));
@@ -145,11 +148,7 @@ module.exports = (types, collection) => {
       if (contents.length < 1) {
         return Promise.resolve();
       }
-      if (!this._checkTypes(contents)) {
-        throw new Error(
-          "[AnyModel] type-constraints not met: " + JSON.stringify(contents)
-        );
-      }
+      this._checkTypes(contents);
 
       const ids = await this._dbs
         .collection(this._collection)
@@ -184,8 +183,13 @@ module.exports = (types, collection) => {
             (!present && !this._types[key].optional) ||
             (present && !checkType(val, this._types[key]))
           ) {
-            console.log(key, val);
-            return false;
+            throw new TypeMissmatchError(
+              "[AnyModel]",
+              collection,
+              contents,
+              key,
+              val
+            );
           }
           if (!present) {
             c[key] = null;

@@ -1,5 +1,6 @@
 const { setup, teardown } = require("./tests/database");
 const { useModel } = require("./index.js");
+const { UnexpectedModelError, TypeMissmatchError } = require("./errors");
 
 const SETUPDB = `
 CREATE TABLE users (
@@ -149,10 +150,9 @@ describe("ManyModel", () => {
     ).contents;
     const ms = await new Models(dbs).load({ a: 4000 });
     ms.contents.forEach((c, i) => (c.id = 999 + i));
-    await expect(async () => await ms.update()).rejects.toThrow({
-      message:
-        "[AnyModel] tried to update but IDs did not match loaded IDs, E46",
-    });
+    await expect(async () => await ms.update()).rejects.toThrow(
+      UnexpectedModelError
+    );
     const newms = await new Models(dbs).load({ a: 4000 });
 
     expect(newms.contents).toMatchObject([
@@ -173,10 +173,9 @@ describe("ManyModel", () => {
     ).contents;
     const ms = await new Models(dbs).load({ a: 4001 });
     ms.contents = ms.contents.slice(1);
-    await expect(async () => await ms.update()).rejects.toThrow({
-      message:
-        "[AnyModel] tried to update but IDs did not match loaded IDs, E46",
-    });
+    await expect(async () => await ms.update()).rejects.toThrow(
+      UnexpectedModelError
+    );
     const newms = await new Models(dbs).load({ a: 4001 });
 
     expect(newms.contents).toMatchObject([
@@ -197,9 +196,9 @@ describe("ManyModel", () => {
     ).contents;
     const ms = await new Models(dbs).load({ a: 4002 });
     ms.contents[1].test = "sheesh";
-    await expect(async () => await ms.update()).rejects.toThrow({
-      message: `[AnyModel] type-constraints not met: [{"id":${id1},"test":10,"a":4002},{"id":${id2},"test":"sheesh","a":4002},{"id":${id3},"test":12,"a":4002}]`,
-    });
+    await expect(async () => await ms.update()).rejects.toThrow(
+      TypeMissmatchError
+    );
     const newms = await new Models(dbs).load({ a: 4002 });
 
     expect(newms.contents).toMatchObject([
@@ -462,19 +461,17 @@ Collection: "users2", Keys: "["id","test"]", Id: "{"id":[${m1.content.id}]}"`,
       email: "test1brr@test.de",
     });
     tests.set("email", "juu");
-    await expect(async () => await tests.update()).rejects.toThrow({
-      message:
-        "[AnyModel] tried to update but IDs did not match loaded IDs, E46",
-    });
+    await expect(async () => await tests.update()).rejects.toThrow(
+      UnexpectedModelError
+    );
 
     const tests2 = await new Models3(dbs).load({
       email: "test1brr@test.de",
     });
     tests2.set("name", "juu");
-    await expect(async () => await tests2.update()).rejects.toThrow({
-      message:
-        "[AnyModel] tried to update but IDs did not match loaded IDs, E46",
-    });
+    await expect(async () => await tests2.update()).rejects.toThrow(
+      UnexpectedModelError
+    );
 
     await expect(
       (

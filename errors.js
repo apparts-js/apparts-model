@@ -57,10 +57,35 @@ function ConstraintFailed(name, newObject) {
     `${this.message}\nCollection: ${this.collection}\n${this.moreInfo}`;
 }
 
+class TypeMissmatchError extends Error {
+  constructor(model, collection, content, key, val) {
+    super(
+      `[AnyModel] type-constraints not met in collection "${collection}". Content: ` +
+        JSON.stringify(content, undefined, 2) +
+        `
+Issue with key: "${key}", it has value ${JSON.stringify(val, undefined, 2)}`
+    );
+  }
+}
+
+class UnexpectedModelError extends Error {
+  constructor(model, err) {
+    super(
+      model +
+        " Unexpected error in store: " +
+        (err instanceof Error
+          ? { ...err, message: err.message, stack: err.stack }
+          : err)
+    );
+  }
+}
+
 module.exports = {
   NotUnique,
   NotFound,
   DoesExist,
   IsReference,
   ConstraintFailed,
+  TypeMissmatchError,
+  UnexpectedModelError,
 };

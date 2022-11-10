@@ -6,6 +6,7 @@ const {
   DoesExist,
   IsReference,
   ConstraintFailed,
+  UnexpectedModelError,
 } = require("./errors");
 const useAnyModel = require("./anyModel");
 
@@ -92,8 +93,7 @@ Collection: "${this._collection}", Keys: "${JSON.stringify(
         } else if (err._code === 3) {
           throw new ConstraintFailed(this._collection, this.content);
         } else {
-          console.log(err);
-          throw new Error("[OneModel] Unexpected error in store: ");
+          throw new UnexpectedModelError("[OneModel]", err);
         }
       }
       return this;
@@ -115,12 +115,10 @@ Collection: "${this._collection}", Keys: "${JSON.stringify(
           .collection(this._collection)
           .remove(this._getKeyFilter(this.content));
       } catch (err) {
-        console.log("IN MODEL", err);
         if (err._code === 2) {
           throw new IsReference(this._collection, this.content);
         } else {
-          console.log(err);
-          throw new Error("[OneModel] Unexpected error in store: ");
+          throw new UnexpectedModelError("[OneModel]", err);
         }
       }
       return this;
