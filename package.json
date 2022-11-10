@@ -44,10 +44,9 @@
     ]
   },
   "devDependencies": {
-    "@apparts/config": "^1.0.6",
-    "@apparts/db": "^3.1.1",
-    "@apparts/error": "^1.0.3",
-    "@apparts/types": "^7.2.0",
+    "@apparts/config": "^1.2.3",
+    "@apparts/db": "^3.7.0",
+    "@apparts/types": "^7.7.0",
     "eslint": "^8.9.0",
     "eslint-config-prettier": "^8.4.0",
     "eslint-plugin-jest": "^26.1.1",
