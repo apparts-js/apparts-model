@@ -3,40 +3,40 @@ import { Required, Obj } from "@apparts/types";
 import { makeManyModel } from "./manyModel";
 import { makeOneModel } from "./oneModel";
 import { makeNoneModel } from "./noneModel";
+import { makeAnyModel } from "./anyModel";
 export * from "./errors";
 
-export const useModel = <TypeSchema extends Obj<Required, any>>(params: {
+export const makeBaseModel = <TypeSchema extends Obj<Required, any>>(params: {
   typeSchema: TypeSchema;
   collection: string;
+  customManyModel?: <
+    CustomManyModel extends ReturnType<typeof makeManyModel<TypeSchema>>
+  >(
+    ManyModel: ReturnType<typeof makeManyModel<TypeSchema>>
+  ) => CustomManyModel;
+  customOneModel?: <
+    CustomOneModel extends ReturnType<typeof makeOneModel<TypeSchema>>
+  >(
+    OneModel: ReturnType<typeof makeOneModel<TypeSchema>>
+  ) => CustomOneModel;
 }) => {
-  return [makeManyModel(params), makeOneModel(params), makeNoneModel(params)];
+  const AnyModel = makeAnyModel(params);
+  const ManyModel = makeManyModel(AnyModel);
+  const NoneModel = makeNoneModel(AnyModel);
+
+  return { ManyModel, NoneModel };
 };
 
-export const makeModel = (name: string, models) => {
-  return {
-    [name + "s"]: models[0],
-    [name]: models[1],
-    ["No" + name]: models[2],
-    ["use" + name]: (dbs) => {
-      if (!dbs) {
-        return models;
-      }
-      class DbsModels extends models[0] {
-        constructor(...args) {
-          super(dbs, ...args);
-        }
-      }
-      class DbsModel extends models[1] {
-        constructor(...args) {
-          super(dbs, ...args);
-        }
-      }
-      class DbsNoModel extends models[2] {
-        constructor(...args) {
-          super(dbs, ...args);
-        }
-      }
-      return [DbsModels, DbsModel, DbsNoModel];
-    },
-  };
+export const makeModel = <Clazz extends ReturnType<typeof makeManyModel>>(
+  Clazz: Clazz
+) => {
+  const OneModel = makeOneModel(Clazz),
+    NoneModel = makeNoneModel(Clazz);
+
+  return [
+    Clazz,
+    OneModel,
+    NoneModel,
+    () => [Clazz, OneModel, NoneModel] as const,
+  ] as const;
 };

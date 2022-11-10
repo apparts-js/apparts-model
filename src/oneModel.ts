@@ -1,28 +1,38 @@
-"use strict";
+import { GenericDBS } from "@apparts/db";
+import {
+  InferType,
+  InferPublicType,
+  InferNotDerivedType,
+  Required,
+  Obj,
+  HasType,
+} from "@apparts/types";
 
-const {
+import {
   NotUnique,
   NotFound,
   DoesExist,
   IsReference,
   ConstraintFailed,
-} = require("./errors");
-const { makeAnyModel } = require("./anyModel");
+} from "./errors";
+import { makeManyModel } from "./manyModel";
 
-const makeOneModel = (types, collection) => {
-  const AnyModel = makeAnyModel(types, collection);
+const makeOneModel = <TypeSchema extends Obj<Required, any>>(
+  Clazz: ReturnType<typeof makeManyModel<TypeSchema>>
+) => {
+  return class OneModel extends Clazz {
+    constructor(
+      dbs: GenericDBS,
+      content: Partial<InferNotDerivedType<TypeSchema>>
+    ) {
+      super(dbs, [content]);
+    }
 
-  return class OneModel extends AnyModel {
-    constructor(dbs, content) {
-      super(dbs);
-      if (content) {
-        if (Array.isArray(content)) {
-          throw new Error(
-            "[OneModel] cannot create multiple. Use ManyModel instead!"
-          );
-        }
-        this.content = this._fillInDefaults([content])[0];
-      }
+    get content() {
+      return this.contents[0];
+    }
+    set content(content: InferNotDerivedType<TypeSchema>) {
+      this.contents = [content];
     }
 
     async load(filter) {
@@ -36,7 +46,7 @@ const makeOneModel = (types, collection) => {
     async _loadOne(f, filter) {
       const [content, something] = await this._load(f);
       if (something) {
-        throw new NotUnique(this._collection, filter, content, something);
+        throw new NotUnique(this._collection, filter);
       } else if (!content) {
         throw new NotFound(this._collection, filter);
       }
@@ -126,12 +136,12 @@ Collection: "${this._collection}", Keys: "${JSON.stringify(
       return this;
     }
 
-    getPublic() {
-      return this._getPublicWithTypes([this.content], this._types, true);
+    async getPublic(): Promise<InferPublicType<TypeSchema>> {
+      return await this._getPublicWithTypes(this.contents)[0];
     }
 
-    async generateDerived() {
-      return this._generateDerived([this.content], this._types, true);
+    async getWithDerived() {
+      return await this._getWithDerived(this.contents)[0];
     }
   };
 };

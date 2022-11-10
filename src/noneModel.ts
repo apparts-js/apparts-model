@@ -1,15 +1,9 @@
 import { GenericDBS } from "@apparts/db";
-import { Required, Obj } from "@apparts/types";
 import { DoesExist } from "./errors";
 import { makeAnyModel } from "./anyModel";
 
-export const makeNoneModel = <TypeSchema extends Obj<Required, any>>(props: {
-  typeSchema: TypeSchema;
-  collection: string;
-}) => {
-  const AnyModel = makeAnyModel(props);
-
-  return class NoneModel extends AnyModel {
+export const makeNoneModel = (Clazz: ReturnType<typeof makeAnyModel>) => {
+  return class NoneModel extends Clazz {
     constructor(dbs: GenericDBS) {
       super(dbs);
     }
