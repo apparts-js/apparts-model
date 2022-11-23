@@ -35,6 +35,13 @@ CREATE TABLE derived (
   id SERIAL PRIMARY KEY,
   test INT NOT NULL
 );
+
+CREATE TABLE wdefault (
+  id SERIAL PRIMARY KEY,
+  "hasDefault" INT NOT NULL,
+  "hasDefaultFn" INT NOT NULL,
+  "objWithDefault" JSON NOT NULL
+);
 `;
 
 const type = {
@@ -71,11 +78,25 @@ const derivedType = {
     derived: async () => new Promise((res) => res("test")),
   },
 };
+const defaultType = {
+  id: { type: "id", key: true, auto: true },
+  hasDefault: { type: "int", default: 3 },
+  hasDefaultFn: { type: "int", default: () => 4 },
+  objWithDefault: {
+    type: "object",
+    keys: {
+      deepHasDefault: { type: "string", default: "inner" },
+      deepHasDefaultFn: { type: "string", default: () => "inner fn" },
+    },
+  },
+};
+
 const [, Model] = useModel(type, "users");
 const [, Model2] = useModel(multiKeyType, "users2");
 const [, Model3] = useModel(noAutoType, "users3");
 const [, Model4] = useModel(foreignType, "comment");
 const [, Model5] = useModel(derivedType, "derived");
+const [, Model6] = useModel(defaultType, "wdefault");
 
 let dbs;
 beforeAll(async () => {
@@ -85,7 +106,7 @@ afterAll(async () => {
   await teardown();
 });
 
-describe("OneModel", () => {
+describe("Creation", () => {
   test("creation of one", async () => {
     const m = new Model(dbs, { test: 1 });
     await expect(m.store()).resolves.toBeTruthy();
@@ -104,6 +125,46 @@ describe("OneModel", () => {
     });
   });
 
+  test("creation of many with default", async () => {
+    const m = new Model6(dbs, {
+      objWithDefault: {
+        deepHasDefault: "yay",
+        deepHasDefaultFn: "nay",
+      },
+    });
+    const m2 = new Model6(dbs, {
+      hasDefault: 7,
+      hasDefaultFn: 8,
+      objWithDefault: {
+        deepHasDefault: "yay",
+        deepHasDefaultFn: "nay",
+      },
+    });
+
+    await expect(m.store()).resolves.toBeTruthy();
+    await expect(m2.store()).resolves.toBeTruthy();
+    expect(m.content).toStrictEqual({
+      id: 1,
+      hasDefault: 3,
+      hasDefaultFn: 4,
+      objWithDefault: {
+        deepHasDefault: "yay",
+        deepHasDefaultFn: "nay",
+      },
+    });
+    expect(m2.content).toStrictEqual({
+      id: 2,
+      hasDefault: 7,
+      hasDefaultFn: 8,
+      objWithDefault: {
+        deepHasDefault: "yay",
+        deepHasDefaultFn: "nay",
+      },
+    });
+  });
+});
+
+describe("loadOne", () => {
   test("loadOne success", async () => {
     const m = new Model(dbs);
 
@@ -126,7 +187,9 @@ describe("OneModel", () => {
       message: "[Model] Object not found",
     });
   });
+});
 
+describe("Update", () => {
   test("update", async () => {
     const m = new Model(dbs);
 
@@ -197,7 +260,9 @@ describe("OneModel", () => {
     const m2 = await new Model(dbs).load({ test: 402 });
     expect(m2.content).toMatchObject(mOld.content);
   });
+});
 
+describe("delete", () => {
   test("delete", async () => {
     await new Model(dbs, { test: 5 }).store();
     await (await new Model(dbs).load({ test: 5 })).delete();
@@ -206,7 +271,9 @@ describe("OneModel", () => {
       message: "[Model] Object not found",
     });
   });
+});
 
+describe("Constraint", () => {
   test("insert constrained", async () => {
     await expect(
       new Model4(dbs, { userid: 1000, comment: "a" }).store()
@@ -227,7 +294,9 @@ describe("OneModel", () => {
     await expect(new Model(dbs).load({ test: 5 }));
     await expect(new Model4(dbs).load({ userid: m.content.id }));
   });
+});
 
+describe("LoadById", () => {
   test("loadById, one key", async () => {
     const m1 = await new Model(dbs, { test: 1 }).store();
     await new Model(dbs, { test: 2 }).store();
@@ -259,7 +328,9 @@ Collection: "users2", Keys: "["id","test"]", Id: "${m1.content.id}"`,
 Collection: "users2", Keys: "["id","test"]", Id: "{"id":${m1.content.id}}"`,
     });
   });
+});
 
+describe("Multi key", () => {
   test("insert unique, multi key, no auto", async () => {
     await new Model3(dbs, {
       email: "test@test.de",
@@ -343,7 +414,9 @@ Collection: "users2", Keys: "["id","test"]", Id: "{"id":${m1.content.id}}"`,
     const m3 = await new Model3(dbs).load({ email: "jesus@god.com" });
     expect(m3.content).toMatchObject(mOld.content);
   });
+});
 
+describe("Find", () => {
   test("find by substring", async () => {
     await new Model3(dbs, {
       email: "test1@test.de",
@@ -356,7 +429,9 @@ Collection: "users2", Keys: "["id","test"]", Id: "{"id":${m1.content.id}}"`,
       ).content
     ).toMatchObject({ email: "test1@test.de", name: "Hans" });
   });
+});
 
+describe("Get Public", () => {
   test("getPublic with derived but not generated", async () => {
     const m2 = await new Model5(dbs).load({ test: 1 });
     await expect(() => m2.getPublic()).toThrow(

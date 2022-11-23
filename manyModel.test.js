@@ -35,6 +35,13 @@ CREATE TABLE derived (
   id SERIAL PRIMARY KEY,
   test INT NOT NULL
 );
+
+CREATE TABLE wdefault (
+  id SERIAL PRIMARY KEY,
+  "hasDefault" INT NOT NULL,
+  "hasDefaultFn" INT NOT NULL,
+  "objWithDefault" JSON NOT NULL
+);
 `;
 
 const type = {
@@ -71,11 +78,26 @@ const derivedType = {
     public: true,
   },
 };
+
+const defaultType = {
+  id: { type: "id", key: true, auto: true },
+  hasDefault: { type: "int", default: 3 },
+  hasDefaultFn: { type: "int", default: () => 4 },
+  objWithDefault: {
+    type: "object",
+    keys: {
+      deepHasDefault: { type: "string", default: "inner" },
+      deepHasDefaultFn: { type: "string", default: () => "inner fn" },
+    },
+  },
+};
+
 const [Models, Model] = useModel(type, "users");
 const [Models2, Model2] = useModel(multiKeyType, "users2");
 const [Models3, Model3] = useModel(noAutoType, "users3");
 const [Models4, Model4] = useModel(foreignType, "comment");
 const [Models5] = useModel(derivedType, "derived");
+const [Models6] = useModel(defaultType, "wdefault");
 
 let dbs;
 beforeAll(async () => {
@@ -85,7 +107,7 @@ afterAll(async () => {
   await teardown();
 });
 
-describe("ManyModel", () => {
+describe("Creation", () => {
   test("creation of one", async () => {
     await expect(() => new Models(dbs, { test: 1 })).toThrow({
       message: "[ManyModel], contents should be an array",
@@ -116,6 +138,48 @@ describe("ManyModel", () => {
     ]);
   });
 
+  test("creation of many with default", async () => {
+    const m = new Models6(dbs, [
+      {
+        objWithDefault: {
+          deepHasDefault: "yay",
+          deepHasDefaultFn: "nay",
+        },
+      },
+      {
+        hasDefault: 7,
+        hasDefaultFn: 8,
+        objWithDefault: {
+          deepHasDefault: "yay",
+          deepHasDefaultFn: "nay",
+        },
+      },
+    ]);
+    await expect(m.store()).resolves.toBeTruthy();
+    expect(m.contents).toStrictEqual([
+      {
+        id: 1,
+        hasDefault: 3,
+        hasDefaultFn: 4,
+        objWithDefault: {
+          deepHasDefault: "yay",
+          deepHasDefaultFn: "nay",
+        },
+      },
+      {
+        id: 2,
+        hasDefault: 7,
+        hasDefaultFn: 8,
+        objWithDefault: {
+          deepHasDefault: "yay",
+          deepHasDefaultFn: "nay",
+        },
+      },
+    ]);
+  });
+});
+
+describe("Update", () => {
   test("update", async () => {
     const ms = new Models(dbs);
 
@@ -207,7 +271,9 @@ describe("ManyModel", () => {
       { test: 12, a: 4002, id: id3 },
     ]);
   });
+});
 
+describe("Delete", () => {
   test("deleteAll", async () => {
     await new Models(dbs, [
       { test: 1, a: 1 },
@@ -219,7 +285,9 @@ describe("ManyModel", () => {
 
     expect(newms.contents.length).toBe(0);
   });
+});
 
+describe("Constrained", () => {
   test("insert constrained", async () => {
     await expect(
       new Models4(dbs, [{ userid: 1000, comment: "a" }]).store()
@@ -245,7 +313,9 @@ describe("ManyModel", () => {
     await expect(msNew.contents).toMatchObject(ms.contents);
     await expect(new Model4(dbs).load({ userid: ms.contents[1].id }));
   });
+});
 
+describe("loadByIds", () => {
   test("loadByIds, one key", async () => {
     const [{ id: id1 }, { id: id2 }, { id: id3 }] = (
       await new Models(dbs, [
@@ -355,7 +425,9 @@ Collection: "users2", Keys: "["id","test"]", Id: "[${m1.content.id}]"`,
 Collection: "users2", Keys: "["id","test"]", Id: "{"id":[${m1.content.id}]}"`,
     });
   });
+});
 
+describe("load", () => {
   test("load, with limit", async () => {
     const [{ id: id1 }, { id: id2 }, { id: id3 }] = (
       await new Models(dbs, [
@@ -393,7 +465,9 @@ Collection: "users2", Keys: "["id","test"]", Id: "{"id":[${m1.content.id}]}"`,
     expect(ms_2.contents).toMatchObject(result2);
     expect(ms_3.contents).toMatchObject(result3);
   });
+});
 
+describe("Multi key", () => {
   test("insert, multi key, no auto", async () => {
     await expect(
       new Models3(dbs, [
@@ -498,7 +572,9 @@ Collection: "users2", Keys: "["id","test"]", Id: "{"id":[${m1.content.id}]}"`,
       ).content
     ).toMatchObject({ email: "test1brr@test.de", name: "Fritz" });
   });
+});
 
+describe("Get public", () => {
   test("getPublic with derived but not generated", async () => {
     const m2 = await new Models5(dbs).load({ test: 1 });
     await expect(() => m2.getPublic()).toThrow(
