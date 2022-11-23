@@ -141,10 +141,7 @@ describe("Creation", () => {
   test("creation of many with default", async () => {
     const m = new Models6(dbs, [
       {
-        objWithDefault: {
-          deepHasDefault: "yay",
-          deepHasDefaultFn: "nay",
-        },
+        objWithDefault: {},
       },
       {
         hasDefault: 7,
@@ -162,8 +159,8 @@ describe("Creation", () => {
         hasDefault: 3,
         hasDefaultFn: 4,
         objWithDefault: {
-          deepHasDefault: "yay",
-          deepHasDefaultFn: "nay",
+          deepHasDefault: "inner",
+          deepHasDefaultFn: "inner fn",
         },
       },
       {

@@ -28,7 +28,7 @@
   "author": "Philipp Uhl",
   "license": "UNLICENSED",
   "peerDependencies": {
-    "@apparts/types": "^6.1.2 || ^7.0.0"
+    "@apparts/types": "^7.6.0"
   },
   "jest": {
     "testTimeout": 10000,

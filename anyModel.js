@@ -1,5 +1,5 @@
 "use strict";
-const { checkType } = require("@apparts/types");
+const { checkType, fillInDefaultsStrict } = require("@apparts/types");
 
 const { TypeMissmatchError, UnexpectedModelError } = require("./errors");
 
@@ -42,26 +42,22 @@ module.exports = (types, collection) => {
     }
 
     getDefaults(values, key) {
-      if (typeof this._types[key].default === "function") {
-        return values.map((c) => ({
-          ...c,
-          [key]: c[key] || this._types[key].default(c),
-        }));
-      } else if (this._types[key].default !== undefined) {
-        return values.map((c) => ({
-          ...c,
-          [key]: c[key] || this._types[key].default,
-        }));
-      } else {
-        return values;
-      }
+      return values.map((value) => ({
+        ...value,
+        [key]: fillInDefaultsStrict(this._types[key], value[key]),
+      }));
     }
 
     _fillInDefaults(values) {
-      for (const key in this._types) {
-        values = this.getDefaults(values, key);
-      }
-      return values;
+      return values.map((value) =>
+        fillInDefaultsStrict(
+          {
+            type: "object",
+            keys: this._types,
+          },
+          value
+        )
+      );
     }
 
     async _load(f) {
