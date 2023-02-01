@@ -1,6 +1,6 @@
 
 
-- deep fillInDefaults
+- [X] deep fillInDefaults
 - relations, by passing in other models and how they relate
   #+BEGIN_SRC js
     useModel({
@@ -17,17 +17,19 @@
   - pass it into makeModel
   - OneModel derives CustomModel
   - makeModel returns OneModel, NoneModel
+  - OR: Remove OneModel, NoneModel?
 - storeOrUpdate function
 - pass Context obj instead of dbs obj?
   - Context = { dbs: GenericDBS, log, ...}
-- Remove all console.logs
+- [X] Remove all console.logs
 - Improve interface of makeModel
-- Store derived values? (If you only update data through the model,
+- +Store derived values? (If you only update data through the model,
   and the derived values are computed on change/store, they will
-  always be correct)
+  always be correct)+
   - Advantage: You can sort and filter by them
   - Disadvantage: might not work for everything. I.e. if derived value
     is calculated based on other resources, too
+    - *->* Don't do it
 
 *TODOS:*
 - [X] transform anyModel to TS
@@ -47,3 +49,45 @@ Sandwich model:
 - different call structure in one/manyModel:
   - getPublic
   - getWithDerived
+
+
+
+
+
+- Issue: Data, functionality and view do not always match
+  - Separation of these sometimes is needed
+- Ideas:
+  - Model could use other model to load data
+    - I.e. admin-version of a model loads by loading non-admin version
+    - Then, does it's changes through functions/type
+    - Changes:
+      - Loaders: DBLoader, ModelLoader
+        #+BEGIN_SRC typescript
+        // Method 1: Overwrite load function
+        class Model {
+          async load(...ps) {
+            this.loadFromModel(OtherModel, ...ps);
+          }
+        }
+
+        // Loading models from loaded models
+        const user = Model.fromOtherModel(otherModel)
+
+        // Loading models with DbLoader
+        const model = DbLoader.load(Model, { .. });
+        model.update();
+
+        // 
+        #+END_SRC
+
+
+- Genau 1 DB Model für jede Tabelle
+  - Types as in table
+  - Relations
+- Zusätzliche Models für verschiedene Views, die aus den DB-Models
+  geladen werden
+  - Diese können dann andere public, readOnly, derived, default Werte
+    haben, aber die grundsätzliche Struktur müsste bestehen bleiben
+    (i.e. alle Keys sind noch da). Ansonsten wäre das Updaten/Createn
+    schwierig.
+  - Zusätzliche Models extenden Original-model?
