@@ -470,7 +470,7 @@ describe("Multi key", () => {
     const tests = await new Models3(dbs).load({
       email: "test1@test.de",
     });
-    tests.set("a", 101);
+    tests.contents = tests.contents.map((c) => ({ ...c, a: 101 }));
     await expect(tests.update()).resolves.toBe(tests);
     await expect(
       (
@@ -507,7 +507,7 @@ describe("Multi key", () => {
     const tests = await new Models3(dbs).load({
       email: "test1brr@test.de",
     });
-    tests.set("email", "juu");
+    tests.contents = tests.contents.map((c) => ({ ...c, email: "juu" }));
     await expect(async () => await tests.update()).rejects.toThrow(
       UnexpectedModelError
     );
@@ -515,7 +515,7 @@ describe("Multi key", () => {
     const tests2 = await new Models3(dbs).load({
       email: "test1brr@test.de",
     });
-    tests2.set("name", "juu");
+    tests2.contents = tests.contents.map((c) => ({ ...c, name: "juu" }));
     await expect(async () => await tests2.update()).rejects.toThrow(
       UnexpectedModelError
     );

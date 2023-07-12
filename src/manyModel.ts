@@ -148,16 +148,6 @@ Collection: "${this._collection}", Keys: "${JSON.stringify(
       return this.contents.length;
     }
 
-    set(field, val) {
-      this.contents.forEach((c) => (c[field] = val));
-      return this;
-    }
-
-    setF(field, f) {
-      this.contents.forEach((c) => (c[field] = f(c)));
-      return this;
-    }
-
     async deleteAll() {
       if (this.length() == 0) {
         return this;
