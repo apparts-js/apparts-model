@@ -1,20 +1,16 @@
-import { GenericDBS } from "@apparts/db";
+import { GenericQueriable, Order, Params } from "@apparts/db";
+
+import { InferNotDerivedType, InferType, Obj, Required } from "@apparts/types";
+import { makeAnyModel } from "./anyModel";
 import {
-  InferType,
-  InferNotDerivedType,
-  Required,
-  Obj,
-  HasType,
-} from "@apparts/types";
-import {
-  UnexpectedModelError,
-  NotUnique,
-  IsReference,
   ConstraintFailed,
   DoesExist,
+  IsReference,
+  NotAllKeysGivenError,
   NotFound,
+  NotUnique,
+  UnexpectedModelError,
 } from "./errors";
-import { makeAnyModel } from "./anyModel";
 
 export const makeManyModel = <TypeSchema extends Obj<Required, any>>({
   typeSchema,
@@ -30,7 +26,7 @@ export const makeManyModel = <TypeSchema extends Obj<Required, any>>({
 
     // TODO: Should contents really be Partial?
     constructor(
-      dbs: GenericDBS,
+      dbs: GenericQueriable,
       contents: Partial<InferNotDerivedType<TypeSchema>>[]
     ) {
       super(dbs);
@@ -41,7 +37,7 @@ export const makeManyModel = <TypeSchema extends Obj<Required, any>>({
       }
     }
 
-    async load(filter, limit, offset, order) {
+    async load(filter: Params, limit?: number, offset?: number, order?: Order) {
       this.contents = await this._load(
         this._dbs
           .collection(this._collection)
@@ -50,7 +46,7 @@ export const makeManyModel = <TypeSchema extends Obj<Required, any>>({
       return this;
     }
 
-    async loadOne(filter) {
+    async loadOne(filter: Params) {
       const [content, something] = await this._load(
         this._dbs.collection(this._collection).find(filter, 2)
       );
@@ -63,7 +59,7 @@ export const makeManyModel = <TypeSchema extends Obj<Required, any>>({
       return this;
     }
 
-    async loadNone(filter) {
+    async loadNone(filter: Params) {
       const contents = await this._load(
         this._dbs.collection(this._collection).find(filter, 2)
       );
@@ -76,47 +72,68 @@ export const makeManyModel = <TypeSchema extends Obj<Required, any>>({
       return this;
     }
 
-    async loadByIds(ids, limit, offset) {
-      if (!Array.isArray(ids)) {
-        const req = {};
-        if (Object.keys(ids).length !== this._keys.length) {
-          throw new Error(`[ManyModel] loadByIds not all keys given, E50.
-Collection: "${this._collection}", Keys: "${JSON.stringify(
-            this._keys
-          )}", Id: "${JSON.stringify(ids)}"`);
-        }
-        this._keys.forEach((key) => {
-          if ((this._types[key] as HasType).type === "id") {
-            if (Array.isArray(ids[key])) {
-              req[key] = ids[key].map((id) => this._dbs.toId(id));
-            } else {
-              req[key] = this._dbs.toId(ids[key]);
-            }
-          } else {
-            req[key] = ids[key];
-          }
-        });
-        this.contents = await this._load(
-          this._dbs.collection(this._collection).findByIds(req, limit, offset)
-        );
-      } else {
-        if (this._keys.length > 1) {
-          throw new Error(`[ManyModel] loadByIds not all keys given, E50.
-Collection: "${this._collection}", Keys: "${JSON.stringify(
-            this._keys
-          )}", Id: "${JSON.stringify(ids)}"`);
-        }
-        this.contents = await this._load(
-          this._dbs
-            .collection(this._collection)
-            .findByIds(
-              { [this._keys[0]]: ids.map((id) => this._dbs.toId(id)) },
-              limit,
-              offset
-            )
-        );
+    protected hasValidKeys(filter: Params) {
+      if (
+        // currently this has quadratic execution time but the keys
+        // list should usually be rather short. Could be optimized later
+        Object.keys(filter).reduce(
+          (a, b) => a && this._keys.includes(b),
+          true
+        ) &&
+        this._keys.length === Object.keys(filter).length
+      ) {
+        return true;
       }
+      return false;
+    }
+
+    async loadByKeys(
+      ids: { [u: string]: unknown[] },
+      limit?: number,
+      offset?: number
+    ) {
+      const req = {};
+      if (!this.hasValidKeys(ids)) {
+        throw new NotAllKeysGivenError(this._collection, {
+          keys: this._keys,
+          filter: ids,
+        });
+      }
+
+      this.contents = await this._load(
+        this._dbs.collection(this._collection).findByIds(ids, limit, offset)
+      );
       return this;
+    }
+
+    async loadOneByKeys(filter: Params) {
+      if (!this.hasValidKeys(filter)) {
+        throw new NotAllKeysGivenError(this._collection, {
+          keys: this._keys,
+          filter,
+        });
+      }
+      const [content, something] = await this._load(
+        this._dbs.collection(this._collection).findByIds(filter, 2)
+      );
+      if (something) {
+        throw new NotUnique(this._collection, { filter, content, something });
+      } else if (!content) {
+        throw new NotFound(this._collection, filter);
+      }
+      this.contents = [content];
+      return this;
+    }
+
+    async loadNoneByKeys(filter: Params) {
+      if (!this.hasValidKeys(filter)) {
+        throw new NotAllKeysGivenError(this._collection, {
+          keys: this._keys,
+          filter,
+        });
+      }
+
+      return this.loadNone(filter);
     }
 
     async store() {

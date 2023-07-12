@@ -1,4 +1,4 @@
-import { GenericDBS, GenericQuery } from "@apparts/db";
+import { GenericQueriable, GenericQuery } from "@apparts/db";
 import {
   checkType,
   Required,
@@ -19,7 +19,7 @@ export const makeAnyModel = <TypeSchema extends Obj<Required, any>>({
   collection: string;
 }) => {
   return class AnyModel {
-    protected _dbs: GenericDBS;
+    protected _dbs: GenericQueriable;
     protected _fromDB: boolean;
     protected _collection: string;
     protected _types: Record<string, Type>;
@@ -28,7 +28,7 @@ export const makeAnyModel = <TypeSchema extends Obj<Required, any>>({
     protected _loadedKeys: unknown[][] | undefined;
     protected _contentWithDerived: InferType<TypeSchema>[] | undefined;
 
-    constructor(dbs: GenericDBS) {
+    constructor(dbs: GenericQueriable) {
       this._dbs = dbs;
       this._fromDB = false;
       this._collection = collection;
