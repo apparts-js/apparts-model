@@ -1,4 +1,4 @@
-const { SETUPDB } = require("./tests/databaseSetup");
+import { SETUPDB } from "./tests/databaseSetup";
 import {
   type,
   multiKeyType,
@@ -7,9 +7,9 @@ import {
   derivedType,
   defaultType,
 } from "./tests/testTypes";
-const { setup, teardown } = require("./tests/database");
-const { useModel } = require("./index");
-const {
+import { setup, teardown } from "./tests/database";
+import { useModel } from "./index";
+import {
   TypeMissmatchError,
   ConstraintFailed,
   DoesExist,
@@ -18,7 +18,7 @@ const {
   NotFound,
   NotUnique,
   UnexpectedModelError,
-} = require("./errors");
+} from "./errors";
 
 const Models = useModel({ typeSchema: type, collection: "users" });
 const Models2 = useModel({
@@ -334,12 +334,7 @@ describe("loadByKeys", () => {
     ]);
     await expect(
       new Models2(dbs).loadByKeys({ id: [m1.contents[0].id] })
-    ).rejects.toThrow({
-      message: `Not all keys given:
-Collection: users2
-keys: ["id","test"]
-filter: {"id":[${m1.contents[0].id}]}`,
-    });
+    ).rejects.toThrow(NotAllKeysGivenError);
   });
 });
 
@@ -591,7 +586,7 @@ describe("Multi key", () => {
       UnexpectedModelError
     );
 
-    await expect(
+    expect(
       (
         await new Models3(dbs).loadByKeys({
           email: "test1brr@test.de",
@@ -599,7 +594,7 @@ describe("Multi key", () => {
         })
       ).contents
     ).toMatchObject([{ email: "test1brr@test.de", name: "Peter" }]);
-    await expect(
+    expect(
       (
         await new Models3(dbs).loadByKeys({
           email: "test1brr@test.de",
@@ -607,7 +602,7 @@ describe("Multi key", () => {
         })
       ).contents
     ).toMatchObject([{ email: "test1brr@test.de", name: "Franz" }]);
-    await expect(
+    expect(
       (
         await new Models3(dbs).loadByKeys({
           email: "test1brr@test.de",

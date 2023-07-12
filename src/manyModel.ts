@@ -28,7 +28,7 @@ export const makeManyModel = <TypeSchema extends Obj<Required, any>>({
     // TODO: Should contents really be Partial?
     constructor(
       dbs: GenericQueriable,
-      contents: Partial<InferNotDerivedType<TypeSchema>>[]
+      contents?: Partial<InferNotDerivedType<TypeSchema>>[]
     ) {
       super(dbs);
       if (contents) {
@@ -121,11 +121,7 @@ export const makeManyModel = <TypeSchema extends Obj<Required, any>>({
       return false;
     }
 
-    async loadByKeys(
-      ids: { [u: string]: unknown[] },
-      limit?: number,
-      offset?: number
-    ) {
+    async loadByKeys(ids: Params, limit?: number, offset?: number) {
       const req = {};
       if (!this.hasValidKeys(ids)) {
         throw new NotAllKeysGivenError(this._collection, {
