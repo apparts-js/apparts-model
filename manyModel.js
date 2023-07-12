@@ -1,10 +1,12 @@
 "use strict";
 
 const {
+  NotFound,
   NotUnique,
   IsReference,
   ConstraintFailed,
   UnexpectedModelError,
+  DoesExist,
 } = require("./errors");
 const useAnyModel = require("./anyModel");
 
@@ -30,6 +32,32 @@ module.exports = (types, collection) => {
           .collection(this._collection)
           .find(filter, limit, offset, order)
       );
+      return this;
+    }
+
+    async loadOne(filter) {
+      const [content, something] = await this._load(
+        this._dbs.collection(this._collection).find(filter, 2)
+      );
+      if (something) {
+        throw new NotUnique(this._collection, filter, content, something);
+      } else if (!content) {
+        throw new NotFound(this._collection, filter);
+      }
+      this.contents = [content];
+      return this;
+    }
+
+    async loadNone(filter) {
+      const contents = await this._load(
+        this._dbs.collection(this._collection).find(filter, 2)
+      );
+      if (contents.length > 0) {
+        throw new DoesExist(this._collection, {
+          shouldNotExist: filter,
+          butDoes: contents,
+        });
+      }
       return this;
     }
 
