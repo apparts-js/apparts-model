@@ -2,7 +2,7 @@
   "name": "@apparts/model",
   "version": "4.8.0",
   "description": "A model for reading and writing to the database. It stores data.",
-  "main": "index.js",
+  "main": "src/index.js",
   "scripts": {
     "testOne": "jest",
     "test": "jest --watch",
