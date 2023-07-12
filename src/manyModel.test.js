@@ -361,6 +361,7 @@ describe("loadOneByKeys", () => {
       },
     ];
     expect(ms.contents).toMatchObject(result);
+    expect(ms.content).toMatchObject(result[0]);
     await expect(
       new Models(dbs).loadOneByKeys({ id: [id1, id2] })
     ).rejects.toThrow(NotUnique);
@@ -457,6 +458,13 @@ describe("load", () => {
     expect(ms_2.contents).toMatchObject(result2);
     expect(ms_3.contents).toMatchObject(result3);
   });
+  it("should reject to retrieve content", async () => {
+    const [{ id: id1 }] = (await new Models(dbs, [{ test: 798, a: 1 }]).store())
+      .contents;
+
+    const ms = await new Models(dbs).load({ id: id1 });
+    expect(() => ms.content).toThrow(NotUnique);
+  });
 });
 
 describe("loadOne", () => {
@@ -469,6 +477,7 @@ describe("loadOne", () => {
 
     await expect(m.loadOne({ test: 800 })).resolves.toBe(m);
     expect(m.contents[0]).toMatchObject({ test: 800, id });
+    expect(m.content).toMatchObject({ test: 800, id });
   });
 
   test("loadOne fail (too many)", async () => {

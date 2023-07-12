@@ -22,7 +22,8 @@ export const makeManyModel = <TypeSchema extends Obj<Required, any>>({
   const AnyModel = makeAnyModel({ typeSchema, collection });
 
   return class ManyModel extends AnyModel {
-    contents: InferNotDerivedType<typeof typeSchema>[];
+    protected isOne = false;
+    protected _contents: InferNotDerivedType<typeof typeSchema>[];
 
     // TODO: Should contents really be Partial?
     constructor(
@@ -31,14 +32,46 @@ export const makeManyModel = <TypeSchema extends Obj<Required, any>>({
     ) {
       super(dbs);
       if (contents) {
-        this.contents = this._fillInDefaults(contents);
+        this._contents = this._fillInDefaults(contents);
+        if (contents.length === 1) {
+          this.isOne = true;
+        }
       } else {
-        this.contents = [];
+        this._contents = [];
       }
     }
 
+    get content() {
+      if (!this.isOne) {
+        throw new NotUnique(this._collection, {
+          contents: this._contents,
+        });
+      }
+      return this._contents[0];
+    }
+
+    set content(c: InferNotDerivedType<typeof typeSchema>) {
+      if (!this.isOne) {
+        throw new NotUnique(this._collection, {
+          contents: this._contents,
+        });
+      }
+      this._contents = [c];
+    }
+
+    set contents(c: InferNotDerivedType<typeof typeSchema>[]) {
+      this._contents = c;
+      if (c.length === 1) {
+        this.isOne = true;
+      }
+    }
+
+    get contents() {
+      return this._contents;
+    }
+
     async load(filter: Params, limit?: number, offset?: number, order?: Order) {
-      this.contents = await this._load(
+      this._contents = await this._load(
         this._dbs
           .collection(this._collection)
           .find(filter, limit, offset, order)
@@ -55,7 +88,8 @@ export const makeManyModel = <TypeSchema extends Obj<Required, any>>({
       } else if (!content) {
         throw new NotFound(this._collection, filter);
       }
-      this.contents = [content];
+      this._contents = [content];
+      this.isOne = true;
       return this;
     }
 
@@ -100,7 +134,7 @@ export const makeManyModel = <TypeSchema extends Obj<Required, any>>({
         });
       }
 
-      this.contents = await this._load(
+      this._contents = await this._load(
         this._dbs.collection(this._collection).findByIds(ids, limit, offset)
       );
       return this;
@@ -121,7 +155,8 @@ export const makeManyModel = <TypeSchema extends Obj<Required, any>>({
       } else if (!content) {
         throw new NotFound(this._collection, filter);
       }
-      this.contents = [content];
+      this._contents = [content];
+      this.isOne = true;
       return this;
     }
 
@@ -138,15 +173,15 @@ export const makeManyModel = <TypeSchema extends Obj<Required, any>>({
 
     async store() {
       try {
-        this.contents = await this._store(this.contents);
+        this._contents = await this._store(this._contents);
       } catch (err) {
         // MONGO
         if ((err as Record<string, any>)?._code === 1) {
           throw new NotUnique(this._collection, {
-            triedToStore: this.contents,
+            triedToStore: this._contents,
           });
         } else if ((err as Record<string, any>)?._code === 3) {
-          throw new ConstraintFailed(this._collection, this.contents);
+          throw new ConstraintFailed(this._collection, this._contents);
         } else {
           throw new UnexpectedModelError("[ManyModel]", err);
         }
@@ -155,12 +190,12 @@ export const makeManyModel = <TypeSchema extends Obj<Required, any>>({
     }
 
     async update() {
-      await this._update(this.contents);
+      await this._update(this._contents);
       return this;
     }
 
     length() {
-      return this.contents.length;
+      return this._contents.length;
     }
 
     async deleteAll() {
@@ -169,13 +204,13 @@ export const makeManyModel = <TypeSchema extends Obj<Required, any>>({
       }
       const filter = {};
       for (const key of this._keys) {
-        filter[key] = { val: this.contents.map((c) => c[key]), op: "in" };
+        filter[key] = { val: this._contents.map((c) => c[key]), op: "in" };
       }
       try {
         await this._dbs.collection(this._collection).remove(filter);
       } catch (err) {
         if ((err as Record<string, any>)?._code === 2) {
-          throw new IsReference(this._collection, this.contents);
+          throw new IsReference(this._collection, this._contents);
         } else {
           throw new UnexpectedModelError("[ManyModel]", err);
         }
@@ -184,11 +219,11 @@ export const makeManyModel = <TypeSchema extends Obj<Required, any>>({
     }
 
     async getPublic() {
-      return await this._getPublicWithTypes(this.contents);
+      return await this._getPublicWithTypes(this._contents);
     }
 
     async getWithDerived(): Promise<InferType<TypeSchema>[]> {
-      return await this._getWithDerived(this.contents);
+      return await this._getWithDerived(this._contents);
     }
   };
 };
