@@ -92,12 +92,12 @@ const defaultType = {
   },
 };
 
-const [Models] = useModel(type, "users");
-const [Models2] = useModel(multiKeyType, "users2");
-const [Models3] = useModel(noAutoType, "users3");
-const [Models4] = useModel(foreignType, "comment");
-const [Models5] = useModel(derivedType, "derived");
-const [Models6] = useModel(defaultType, "wdefault");
+const Models = useModel(type, "users");
+const Models2 = useModel(multiKeyType, "users2");
+const Models3 = useModel(noAutoType, "users3");
+const Models4 = useModel(foreignType, "comment");
+const Models5 = useModel(derivedType, "derived");
+const Models6 = useModel(defaultType, "wdefault");
 
 let dbs;
 beforeAll(async () => {

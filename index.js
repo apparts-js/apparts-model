@@ -14,34 +14,6 @@ module.exports = {
     if (typeof collection !== "string") {
       throw new Error("[Model]: Collection is not a string!" + USAGE);
     }
-    return [manyModel(types, collection)];
-  },
-  makeModel(name, models) {
-    return {
-      [name + "s"]: models[0],
-      [name]: models[1],
-      ["No" + name]: models[2],
-      ["use" + name]: (dbs) => {
-        if (!dbs) {
-          return models;
-        }
-        class DbsModels extends models[0] {
-          constructor(...args) {
-            super(dbs, ...args);
-          }
-        }
-        class DbsModel extends models[1] {
-          constructor(...args) {
-            super(dbs, ...args);
-          }
-        }
-        class DbsNoModel extends models[2] {
-          constructor(...args) {
-            super(dbs, ...args);
-          }
-        }
-        return [DbsModels, DbsModel, DbsNoModel];
-      },
-    };
+    return manyModel(types, collection);
   },
 };
