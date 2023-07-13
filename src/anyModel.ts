@@ -66,7 +66,7 @@ export const makeAnyModel = <TypeSchema extends Obj<Required, any>>({
       }));
     }
 
-    _fillInDefaults(values: InferNotDerivedType<TypeSchema>[]) {
+    protected _fillInDefaults(values: InferNotDerivedType<TypeSchema>[]) {
       return values.map((value) =>
         fillInDefaultsStrict(
           {
@@ -78,7 +78,7 @@ export const makeAnyModel = <TypeSchema extends Obj<Required, any>>({
       );
     }
 
-    async _load(f: GenericQuery) {
+    protected async _load(f: GenericQuery) {
       if (this._fromDB) {
         throw new Error(
           "[AnyModel] load on already loaded model, Refusing to load twice"
@@ -91,7 +91,7 @@ export const makeAnyModel = <TypeSchema extends Obj<Required, any>>({
       return contents;
     }
 
-    async _update(contents: InferNotDerivedType<TypeSchema>[]) {
+    protected async _update(contents: InferNotDerivedType<TypeSchema>[]) {
       const newKeys = contents.map((c) => this._keys.map((key) => c[key]));
       if (
         !this._loadedKeys ||
@@ -121,7 +121,7 @@ export const makeAnyModel = <TypeSchema extends Obj<Required, any>>({
       }
     }
 
-    _removeAutos(c: InferNotDerivedType<TypeSchema>) {
+    protected _removeAutos(c: InferNotDerivedType<TypeSchema>) {
       const val = { ...c };
       for (const auto of this._autos) {
         delete val[auto];
@@ -129,7 +129,7 @@ export const makeAnyModel = <TypeSchema extends Obj<Required, any>>({
       return val;
     }
 
-    _getKeyFilter(c: InferNotDerivedType<TypeSchema>) {
+    protected _getKeyFilter(c: InferNotDerivedType<TypeSchema>) {
       const filter = {};
       for (const key of this._keys) {
         filter[key] = c[key];
@@ -137,13 +137,13 @@ export const makeAnyModel = <TypeSchema extends Obj<Required, any>>({
       return filter;
     }
 
-    async _updateOne(c: InferNotDerivedType<TypeSchema>) {
+    protected async _updateOne(c: InferNotDerivedType<TypeSchema>) {
       await this._dbs
         .collection(this._collection)
         .updateOne(this._getKeyFilter(c), this._removeAutos(c));
     }
 
-    _convertIds(c: InferNotDerivedType<TypeSchema>) {
+    protected _convertIds(c: InferNotDerivedType<TypeSchema>) {
       for (const key in this._types) {
         if (!c[key]) {
           continue;
@@ -156,7 +156,7 @@ export const makeAnyModel = <TypeSchema extends Obj<Required, any>>({
       return c;
     }
 
-    async _store(
+    protected async _store(
       contents: InferNotDerivedType<TypeSchema>[]
     ): Promise<InferNotDerivedType<TypeSchema>[]> {
       if (contents.length < 1) {
@@ -178,7 +178,7 @@ export const makeAnyModel = <TypeSchema extends Obj<Required, any>>({
       return contents;
     }
 
-    _checkTypes(contents: InferNotDerivedType<TypeSchema>[]) {
+    protected _checkTypes(contents: InferNotDerivedType<TypeSchema>[]) {
       for (const c of contents) {
         for (const key in this._types) {
           if (this._autos.indexOf(key) !== -1) {
@@ -213,7 +213,7 @@ export const makeAnyModel = <TypeSchema extends Obj<Required, any>>({
       return true;
     }
 
-    async _getWithDerived(
+    protected async _getWithDerived(
       contents: InferNotDerivedType<TypeSchema>[]
     ): Promise<InferType<TypeSchema>[]> {
       if (this._contentWithDerived) {
@@ -237,7 +237,7 @@ export const makeAnyModel = <TypeSchema extends Obj<Required, any>>({
       return derivedData;
     }
 
-    async _getPublicWithTypes(
+    protected async _getPublicWithTypes(
       contents: InferNotDerivedType<TypeSchema>[]
     ): Promise<InferPublicType<TypeSchema>[]> {
       const contentsDerived = await this._getWithDerived(contents);
