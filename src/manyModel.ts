@@ -22,8 +22,8 @@ export const makeManyModel = <TypeSchema extends Obj<Required, any>>({
   const AnyModel = makeAnyModel({ typeSchema, collection });
 
   return class ManyModel extends AnyModel {
-    protected isOne = false;
-    protected _contents: InferNotDerivedType<typeof typeSchema>[];
+    isOne = false;
+    _contents: InferNotDerivedType<typeof typeSchema>[];
 
     // TODO: Should contents really be Partial?
     constructor(
@@ -106,7 +106,7 @@ export const makeManyModel = <TypeSchema extends Obj<Required, any>>({
       return this;
     }
 
-    protected hasValidKeys(filter: Params) {
+    hasValidKeys(filter: Params) {
       if (
         // currently this has quadratic execution time but the keys
         // list should usually be rather short. Could be optimized later
@@ -122,7 +122,6 @@ export const makeManyModel = <TypeSchema extends Obj<Required, any>>({
     }
 
     async loadByKeys(ids: Params, limit?: number, offset?: number) {
-      const req = {};
       if (!this.hasValidKeys(ids)) {
         throw new NotAllKeysGivenError(this._collection, {
           keys: this._keys,
