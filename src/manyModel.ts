@@ -221,5 +221,9 @@ export const makeManyModel = <TypeSchema extends Obj<Required, any>>({
     async getWithDerived(): Promise<InferType<TypeSchema>[]> {
       return await this._getWithDerived(this._contents);
     }
+
+    checkTypes() {
+      return this._checkTypes(this.contents);
+    }
   };
 };

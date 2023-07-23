@@ -59,7 +59,7 @@ export const makeAnyModel = <TypeSchema extends Obj<Required, any>>({
       return typeSchema;
     }
 
-    getDefaults(values: InferNotDerivedType<TypeSchema>[], key) {
+    getWithDefaults(values: InferNotDerivedType<TypeSchema>[], key) {
       return values.map((value) => ({
         ...value,
         [key]: fillInDefaultsStrict(this._types[key], value[key]),
