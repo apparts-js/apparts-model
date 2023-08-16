@@ -334,7 +334,10 @@ describe("loadByKeys", () => {
       },
     ]);
     await expect(
-      new Models2(dbs).loadByKeys({ id: [m1.contents[0].id] })
+      new Models2(dbs).loadByKeys(
+        // @ts-expect-error test type
+        { id: [m1.contents[0].id] }
+      )
     ).rejects.toThrow(NotAllKeysGivenError);
   });
 });
@@ -383,7 +386,10 @@ describe("loadOneByKeys", () => {
       },
     ]);
     await expect(
-      new Models2(dbs).loadOneByKeys({ id: [m1.contents[0].id] })
+      new Models2(dbs).loadOneByKeys(
+        // @ts-expect-error test type
+        { id: [m1.contents[0].id] }
+      )
     ).rejects.toThrow(NotAllKeysGivenError);
     await expect(
       new Models(dbs).loadOneByKeys({
@@ -401,9 +407,12 @@ describe("lodeNoneByKeys", () => {
   test("loadNoneByKeys success", async () => {
     const m = new Models(dbs);
 
-    await expect(new Models(dbs).loadNoneByKeys({})).rejects.toThrow(
-      NotAllKeysGivenError
-    );
+    await expect(
+      new Models(dbs).loadNoneByKeys(
+        // @ts-expect-error test type
+        {}
+      )
+    ).rejects.toThrow(NotAllKeysGivenError);
 
     await expect(m.loadNoneByKeys({ id: 777777 })).resolves.toBe(m);
   });

@@ -36,7 +36,7 @@
     "@apparts/config": "^1.2.3",
     "@apparts/db": "^3.7.0",
     "@apparts/error": "^1.0.3",
-    "@apparts/types": "^9.5.0",
+    "@apparts/types": "^9.9.0",
     "@tsconfig/node14": "^1.0.3",
     "@types/jest": "^28.1.6",
     "@types/node": "^18.7.2",

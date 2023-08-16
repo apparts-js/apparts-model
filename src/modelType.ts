@@ -8,6 +8,7 @@ import {
   Obj,
   Required,
   Type,
+  InferIsKeyType,
 } from "@apparts/types";
 import {
   ConstraintFailed,
@@ -27,6 +28,11 @@ export type RecursivePartial<T> = {
     ? RecursivePartial<T[P]>
     : T[P];
 };
+
+type _<T> = T extends object ? { [k in keyof T]: T[k] } : T;
+type IsKeysParams<TypeSchema extends Obj<Required, any>> = _<{
+  [key in keyof InferIsKeyType<TypeSchema>]: any;
+}>;
 
 export abstract class Model<TypeSchema extends Obj<Required, any>> {
   _dbs: GenericQueriable;
@@ -135,7 +141,11 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
     return false;
   }
 
-  async loadByKeys(ids: Params, limit?: number, offset?: number) {
+  async loadByKeys(
+    ids: IsKeysParams<TypeSchema>,
+    limit?: number,
+    offset?: number
+  ) {
     if (!this.hasValidKeys(ids)) {
       throw new NotAllKeysGivenError(this._collection, {
         keys: this._keys,
@@ -149,7 +159,7 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
     return this;
   }
 
-  async loadOneByKeys(filter: Params) {
+  async loadOneByKeys(filter: IsKeysParams<TypeSchema>) {
     if (!this.hasValidKeys(filter)) {
       throw new NotAllKeysGivenError(this._collection, {
         keys: this._keys,
@@ -169,7 +179,7 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
     return this;
   }
 
-  async loadNoneByKeys(filter: Params) {
+  async loadNoneByKeys(filter: IsKeysParams<TypeSchema>) {
     if (!this.hasValidKeys(filter)) {
       throw new NotAllKeysGivenError(this._collection, {
         keys: this._keys,
