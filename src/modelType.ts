@@ -29,9 +29,11 @@ export type RecursivePartial<T> = {
     : T[P];
 };
 
-type _<T> = T extends object ? { [k in keyof T]: T[k] } : T;
-type IsKeysParams<TypeSchema extends Obj<Required, any>> = _<{
+type IsKeysParams<TypeSchema extends Obj<Required, any>> = {
   [key in keyof InferIsKeyType<TypeSchema>]: any;
+};
+type AllParams<TypeSchema extends Obj<Required, any>> = Partial<{
+  [key in keyof InferType<TypeSchema>]: any;
 }>;
 
 export abstract class Model<TypeSchema extends Obj<Required, any>> {
@@ -91,7 +93,7 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
   }
 
   async load(
-    filter: Params,
+    filter: AllParams<TypeSchema>,
     limit?: number,
     offset?: number,
     order?: Order
@@ -102,7 +104,7 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
     return this;
   }
 
-  async loadOne(filter: Params) {
+  async loadOne(filter: AllParams<TypeSchema>) {
     const [content, something] = await this._load(
       this._dbs.collection(this._collection).find(filter, 2)
     );
@@ -116,7 +118,7 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
     return this;
   }
 
-  async loadNone(filter: Params) {
+  async loadNone(filter: AllParams<TypeSchema>) {
     const contents = await this._load(
       this._dbs.collection(this._collection).find(filter, 2)
     );
