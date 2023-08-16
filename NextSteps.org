@@ -2,14 +2,43 @@
 
 - deep fillInDefaults
 - relations, by passing in other models and how they relate
-  #+BEGIN_SRC js
+  #+BEGIN_SRC typescript
     useModel({
       type,
+      schema: obj({ id: int(), otherModelId: int() }),
       relations: {
       // pass it the filter, to load by
         useOtherModel: (content) => ({ id: content.otherModelId })
       }
-    }, collectionName)
+    }, collectionName);
+  #+END_SRC
+  Some schema that specifies the other model directly in the type?
+  could use derived?
+  #+BEGIN_SRC typescript
+    useModel({
+      type,
+      schema: obj({ id: int(), otherModel: otherModelSchema.reference() }),
+      relations: {
+      // pass it the filter, to load by
+        useOtherModel: (content) => ({ id: content.otherModelId })
+      }
+    }, collectionName);
+  #+END_SRC
+  Or just the id and the relations object takes as key where the other
+  model will be loaded to? How exactly would the specification of the
+  other models use function and how the keys are related look like?
+  #+BEGIN_SRC typescript
+    useModel({
+      type,
+      schema: obj({ id: int(), otherModelId: int() }),
+      relations: {
+      // pass it the filter, to load by
+        otherModel: (content) => useOtherModel.load({ id: content.otherModelId })
+      }
+    }, collectionName);
+    const model = /*...*/
+    await model.loadRelation("otherModel")
+    model.otherModel.xy = 3;
   #+END_SRC
   - Use these relations to allow @apparts/model-api to return what has
     to be deleted cascadingly
@@ -50,3 +79,39 @@ Sandwich model:
 - different call structure in one/manyModel:
   - getPublic
   - getWithDerived
+
+
+
+
+
+DbContextRepository added to request Context
+- can cache stuff
+- new one on every request
+- function can be passed to model-api that extracts a Repository from
+  Context so that any model with any data source can be used in model-api
+- Model Factory for creating/manipulating model objects
+  - new
+  - newWDefaults ?
+  - checkType
+  - getPublic
+  - getWithDefaults
+  - hasValidKeys
+  - getCollection
+  - getSchema
+  - custom functions?
+#+BEGIN_SRC typescript
+// creation
+const userFactory = makeFactory({ schema, collection? });
+
+// middleware
+req.context.dbRepo = new DbContextRepository(dbs);
+
+// usage
+const user = userFactory.newWDefaults({...})
+await userFactory(repo).store(user)
+
+// transaction
+dbs.transaction(dbs => {
+  transactionRepo = new DbContextRepository(dbs);
+});
+#+END_SRC
