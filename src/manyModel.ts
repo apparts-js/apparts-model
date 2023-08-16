@@ -12,6 +12,14 @@ import {
   UnexpectedModelError,
 } from "./errors";
 
+type RecursivePartial<T> = {
+  [P in keyof T]?: T[P] extends (infer U)[]
+    ? RecursivePartial<U>[]
+    : T[P] extends object | undefined
+    ? RecursivePartial<T[P]>
+    : T[P];
+};
+
 export const makeManyModel = <TypeSchema extends Obj<Required, any>>({
   typeSchema,
   collection,
@@ -28,7 +36,7 @@ export const makeManyModel = <TypeSchema extends Obj<Required, any>>({
     // TODO: Should contents really be Partial?
     constructor(
       dbs: GenericQueriable,
-      contents?: Partial<InferNotDerivedType<TypeSchema>>[]
+      contents?: RecursivePartial<InferNotDerivedType<TypeSchema>>[]
     ) {
       super(dbs);
       if (contents) {

@@ -190,6 +190,7 @@ describe("Update", () => {
       ]).store()
     ).contents;
     const ms = await new Models(dbs).load({ a: 4002 });
+    // @ts-expect-error test type
     ms.contents[1].test = "sheesh";
     await expect(async () => await ms.update()).rejects.toThrow(
       TypeMissmatchError
