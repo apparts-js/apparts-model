@@ -13,6 +13,7 @@
   #+END_SRC
   - Use these relations to allow @apparts/model-api to return what has
     to be deleted cascadingly
+  - Inner join with array_agg for retrieving relations? https://stackoverflow.com/a/41685553
 - export ManyModel and extend it (CustomModel)
   - pass it into makeModel
   - OneModel derives CustomModel
@@ -28,6 +29,8 @@
   - Advantage: You can sort and filter by them
   - Disadvantage: might not work for everything. I.e. if derived value
     is calculated based on other resources, too
+- Idea based on .net ef: Have a request-dependent context that knows
+  what has been loaded, changed(?)
 
 *TODOS:*
 - [X] transform anyModel to TS
