@@ -28,7 +28,14 @@ export const getModelCollection = <
   Clazz: Clazz
 ) => {
   // @ts-expect-error hack
-  return Clazz.getCollection();
+  const { getCollection } = Clazz;
+
+  if (!getCollection) {
+    throw new Error(
+      "getCollection not defined. Did you forget to use useModel?"
+    );
+  }
+  return getCollection();
 };
 
 export const getModelSchema = <
@@ -38,5 +45,10 @@ export const getModelSchema = <
   Clazz: Clazz
 ) => {
   // @ts-expect-error hack
-  return Clazz.getSchema();
+  const { getSchema } = Clazz;
+
+  if (!getSchema) {
+    throw new Error("getSchema not defined. Did you forget to use useModel?");
+  }
+  return getSchema();
 };
