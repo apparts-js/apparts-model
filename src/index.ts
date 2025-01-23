@@ -1,13 +1,42 @@
 import { Obj, Required } from "@apparts/types";
-import { makeManyModel } from "./manyModel";
+import { ManyModel as BaseModel } from "./manyModel";
 export * from "./errors";
+export { BaseModel };
 
-export const useModel = <TypeSchema extends Obj<Required, any>>({
-  typeSchema,
-  collection,
-}: {
+type ModelOptions<TypeSchema extends Obj<Required, any>> = {
   typeSchema: TypeSchema;
   collection: string;
-}) => {
-  return makeManyModel({ typeSchema, collection });
+};
+
+export const useModel = <
+  TypeSchema extends Obj<Required, any>,
+  Clazz extends new (...ps: any[]) => BaseModel<TypeSchema>
+>(
+  Clazz: Clazz,
+  { typeSchema, collection }: ModelOptions<TypeSchema>
+) => {
+  // @ts-expect-error hack
+  Clazz.getCollection = () => collection;
+  // @ts-expect-error hack
+  Clazz.getSchema = () => typeSchema;
+};
+
+export const getModelCollection = <
+  TypeSchema extends Obj<Required, any>,
+  Clazz extends new (...ps: any[]) => BaseModel<TypeSchema>
+>(
+  Clazz: Clazz
+) => {
+  // @ts-expect-error hack
+  return Clazz.getCollection();
+};
+
+export const getModelSchema = <
+  TypeSchema extends Obj<Required, any>,
+  Clazz extends new (...ps: any[]) => BaseModel<TypeSchema>
+>(
+  Clazz: Clazz
+) => {
+  // @ts-expect-error hack
+  return Clazz.getSchema();
 };

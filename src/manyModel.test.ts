@@ -8,7 +8,12 @@ import {
   defaultType,
 } from "./tests/testTypes";
 import { setup, teardown } from "./tests/database";
-import { useModel } from "./index";
+import {
+  BaseModel,
+  useModel,
+  getModelCollection,
+  getModelSchema,
+} from "./index";
 import {
   TypeMissmatchError,
   ConstraintFailed,
@@ -19,29 +24,37 @@ import {
   NotUnique,
   UnexpectedModelError,
 } from "./errors";
+import { GenericDBS } from "@apparts/db";
 
-const Models = useModel({ typeSchema: type, collection: "users" });
-const Models2 = useModel({
-  typeSchema: multiKeyType,
-  collection: "users2",
-});
-const Models3 = useModel({
-  typeSchema: noAutoType,
-  collection: "users3",
-});
-const Models4 = useModel({
-  typeSchema: foreignType,
-  collection: "comment",
-});
-const Models5 = useModel({ typeSchema: derivedType, collection: "derived" });
-const Models6 = useModel({ typeSchema: defaultType, collection: "wdefault" });
+class Models extends BaseModel<typeof type> {}
+useModel(Models, { collection: "users", typeSchema: type });
 
-let dbs;
+class Models2 extends BaseModel<typeof multiKeyType> {}
+useModel(Models2, { collection: "users2", typeSchema: multiKeyType });
+class Models3 extends BaseModel<typeof noAutoType> {}
+useModel(Models3, { collection: "users3", typeSchema: noAutoType });
+class Models4 extends BaseModel<typeof foreignType> {}
+useModel(Models4, { collection: "comment", typeSchema: foreignType });
+class Models5 extends BaseModel<typeof derivedType> {}
+useModel(Models5, { collection: "derived", typeSchema: derivedType });
+class Models6 extends BaseModel<typeof defaultType> {}
+useModel(Models6, { collection: "wdefault", typeSchema: defaultType });
+
+let dbs: GenericDBS;
 beforeAll(async () => {
   dbs = await setup([SETUPDB], null, "appartsmanymodeltests");
 });
 afterAll(async () => {
   await teardown();
+});
+
+describe("Static properties", () => {
+  it("should return collection", async () => {
+    expect(getModelCollection(Models)).toBe("users");
+  });
+  it("should return schema", async () => {
+    expect(getModelSchema(Models)).toStrictEqual(type);
+  });
 });
 
 describe("Creation", () => {

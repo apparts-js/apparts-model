@@ -30,7 +30,7 @@
   "author": "Philipp Uhl",
   "license": "UNLICENSED",
   "peerDependencies": {
-    "@apparts/types": "^9.5.0"
+    "@apparts/types": "^9.9.0"
   },
   "devDependencies": {
     "@apparts/config": "^1.2.3",

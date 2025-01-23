@@ -49,10 +49,7 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
   _contents: InferNotDerivedType<TypeSchema>[];
 
   // TODO: Should contents really be Partial?
-  constructor(
-    dbs: GenericQueriable,
-    contents?: RecursivePartial<InferNotDerivedType<TypeSchema>>[]
-  ) {
+  constructor(dbs: GenericQueriable) {
     this._dbs = dbs;
     this._fromDB = false;
     this._collection = "";

@@ -4,122 +4,93 @@
 
 * Usage
 
-You can either work with one, multiple, or no elements. The respective
-classes are ~OneModel~, ~ManyModel~, and ~NoneModel~. You can extend
-these classes by using them:
+Create model classes like this:
 
 #+BEGIN_SRC js
-  const { useModel, makeModel } = require("@apparts/model");
+  import { useModel, BaseModel } from "@apparts/model";
+  import * as types from "@apparts/types";
 
-  const types = {
-    id: {
-      /* Types as defined by @apparts/types */
-      type: "id",
-      /* Will be shown in output of getPublic*/
-      public: true,
-      /* Auto increment this field */
-      auto: true,
-      /* This is a key. Combined keys are possible, too, by setting 
-         { key: true } on multiple fields. */
-      key: true
-    }   
-    optionalVal: { 
-      type: "string", 
-      /* This field can be NULL */
-      optional: true  
-    },
-    derivedValue: {
-      type: "string",
-      public: true,
-      /* This field will not be persisted. It's value is derived from
-         other values and will be generated on the fly. When using the
-         getPublic method, while having derived values, you must first
-         call generateDerived. */
-      derived: async (c, model) => {
+  const modelSchema = types.obj({
+    id: types
+    /* Types as defined by @apparts/types */
+      .id()
+    /* Auto increment this field */
+      .auto()
+    /* Will be shown in output of getPublic*/
+      .public()
+    /* This is a key. Combined keys are possible, too, by calling
+       key() on multiple fields. */
+      .key(),
+    optionalVal: types.string()
+    /* This field can be undefined */
+      .optional(),
+    derivedValue: types.string().public()
+    /* This field will not be persisted. It's value is derived from
+       other values and will be generated on the fly. When using the
+       getPublic method, while having derived values, you must first
+       call generateDerived. */
+      .derived(async (c, model) => {
         /* c is the content of the model, model is the whole Model object */
         return (await model._dbs._getSomeRelation()).text;
-      }
-    },
-    createdOn: { 
-      type: "time", 
-      /* This field will be set to the functions result, if the field is
-         NULL. The function recieves the element as parameter. */
-      default: (c) => c.optionalVal || Date.now() 
-    },
-    fixedDefault: { 
-      type: "int", 
-      /* This field will be set to the given value, if the field is
-         NULL. */
-      default: 7, 
-      /* This field will be named "someNumber" in the output of
-         getPublic */
-      mapped: "someNumber",
-      public: true
-    },
-  };
+      }),
+    createdOn: types.time().public()
+    /* This field will be set to the functions result, if the field is
+       NULL. The function recieves the element as parameter. */
+      .default((c) => c.optionalVal || Date.now()),
+    fixedDefault: types.int().public(),
+      .default(7)
+    /* This field will be set to the given value, if the field is
+       NULL. */
+      .mapped("someNumber"),
+    /* This field will be named "someNumber" in the output of
+       getPublic */
+  });
 
-  const [Users, _User, NoUser] = useModel(types, "users");
-
-  // You can extend the classes like this:
-  class User extends _User {
-    constructor(dbs, content) {
-      super(dbs, content);
-      // do something here
-    }
-    additionalFunc() {
-      return this.content;
-    }
-  }
-
-  module.exports = makeModel("User", [Users, User, NoUser]);
+  export class User extends BaseModel<typeof modelSchema> {}
+  // Activate the model:
+  useModel(
+    User,
+    // The name of the collection in the database
+    "user",
+    // The schema of the model
+    modelSchema
+  );
 #+END_SRC
 
 The extended classes can then be used:
 
 #+BEGIN_SRC js
   // get dbs from "@apparts/db" somehow
-  const peter = await new User(dbs, { optionalVal: "Peter"}).store();
+  const peter = await new User(dbs, [{ optionalVal: "Peter"}]).store();
   console.log(peter.content); 
   // => { id: 1, optionalVal: "Peter", createdOn: 12345, fixedDefault: 7 }
 #+END_SRC
 
 
-** =useModel= and =makeModel=
-
-@apparts/model exports two functions: =useModel= and =makeModel=:
-
-- =useModel : (<types>, <collection name>) => <[ManyModel, OneModel, NoneModel]>= ::
-  A function that takes the type definition of the model and the name
-  for the collection (with Postgresql that would be the table
-  name). It returns an array with a =ManyModel=, an =OneModel= and a
-  =NoneModel= for the given type and collection name.
-- =makeModel : (<Name>, [ManyModel, OneModel, NoneModel]) => { use<Name>, <Name>, <Name>s, No<Name> }= :: 
-  A function that is intended to generate what a file exports, that
-  defines a model. It takes the overloaded classes as input and the
-  models name. It returns an object with a function that works similar
-  to =useModel= and the respective Many-, One-, NoneModel but named
-  according to the =name=-parameter.
-  - =use<Name> : (?dbs) => [<Name>s, <Name>, No<Name>]= :: The =use<Name>=
-    function can be either invoked with a [[https://github.com/phuhl/apparts-db][Dbs]] or without. When invoked
-    with a Dbs, the returned Models will have the Dbs set already and
-    have a changed constructor signature: The ManyModel and OneModel
-    take the content as first and only parameter, the NoneModel
-    doesn't take a parameter at all.
-
-** ManyModel
+** Model functions
 
 _Values:_
+- ~content~ :: Object, that contains the values. The values can be edited. To
+  save the changes, call ~update~. Can only be used if =loadOne= is used
+  or the constructor was called with an array of length 1.
 - ~contents~ :: Array, that contains the values. The values can be edited. To
   save the changes, call ~update~.
 
 _Functions:_
-- ~constructor(dbs, ?[contents])~ :: Constructor, when used via
-  =use<Name>()=.
-- ~constructor(?[contents])~ :: Constructor, when used via =use<Name>(dbs)=.
+- ~constructor(dbs, ?[contents])~ :: Constructor
 - ~async load(filter, ?limit, ?offset, ?order)~ :: Load data, filter grammar
   is as defined by the =find= function of the =dbs=. For more information,
   see below at in the section "Filter Grammar".
-- ~async loadByIds(ids, ?limit, ?offset)~ :: Load data by IDs. For models with
+- ~async loadOne(filter, ?limit, ?offset, ?order)~ :: Load data, filter
+  grammar is as defined by the =find= function of the =dbs=. For more
+  information, see below at in the section "Filter Grammar". Throws
+  =NotUnique= if more than one object was found or =NotFound= exceptions
+  if no object was found.
+- ~async loadNone(filter)~ :: Throws an ~DoesExist~ error, if something was
+  loaded, does nothing if nothing was loaded. The filter grammar
+  is as defined by the =find= function of the =dbs=. For more information,
+  see below at in the section "Filter Grammar".
+- ~async loadByKeys(ids, ?limit, ?offset)~ :: Load data by IDs. For models with
   only one key, you can use ~[<id1>, <id2>, ...]~, for a model with
   multiple keys, you have to use ~{ <key1>: [ <id1>, ...], <key2>:
   [<key2id1>, ...], ...}~.
@@ -140,46 +111,6 @@ _Functions:_
   before =getPublic= is called, if derived values exist in the type.
 - =static getTypes()= :: Returns the type of the model
 
-** OneModel
-
-_Values:_
-- ~content~ :: Object, that contains the values. The values can be edited. To
-  save the changes, call ~update~.
-
-_Functions:_
-- ~constructor(dbs, ?content)~ :: Constructor, when used via =use<Name>()=.
-- ~constructor(?content)~ :: Constructor, when used via =use<Name>(dbs)=.
-- ~async load(filter)~ :: Load one item. If more than one item was found
-  that satisfies the filter, a =NotUnique= error will be thrown. If no item
-  was found, a =NotFound= error will be thrown. The filter grammar
-  is as defined by the =find= function of the =dbs=. For more information,
-  see below at in the section "Filter Grammar".
-- ~async loadById(id)~ :: Load data by ID. For models with
-  only one key, you can use ~<id>~, for a model with
-  multiple keys, you have to use ~{ <key1>: <id>, <key2>: <key2id>, ... }~.
-- ~async store()~ :: Saves to the database
-- ~async update()~ :: Updates the values, if you updated the contents.
-- ~set(field, val)~ :: Set a field on all elements
-- ~async delete()~ :: Delete this element from the database. If the item
-  is referenced by another item, =IsReference= will be thrown.
-- ~getPublic()~ :: Get the public representation (marked as public in
-  the types definition by the key ~public (bool)~). If there are derived
-  values in the type, =generateDerived= must be called first!
-- =async generateDerived()= :: Generate derived values. The derived
-  values will be saved in =_derived=. This function must be called
-  before =getPublic= is called, if derived values exist in the type.
-- =static getTypes()= :: Returns the type of the model
-
-** NoneModel
-
-_Functions:_
-- ~constructor(dbs)~ :: Constructor
-- ~async loadNone(filter)~ :: Throws an ~DoesExist~ error, if something was
-  loaded, does nothing if nothing was loaded. The filter grammar
-  is as defined by the =find= function of the =dbs=. For more information,
-  see below at in the section "Filter Grammar".
-- =static getTypes()= :: Returns the type of the model
-
 ** Errors
 
 - ~DoesExist~
@@ -189,8 +120,13 @@ _Functions:_
 - =ConstraintFailed=
 
 #+BEGIN_SRC js
-  const { NotUnique, NotFound,
-          DoesExist, IsReference, ConstraintFailed } = require("@apparts/model");
+  import {
+    NotUnique,
+    NotFound,
+    DoesExist,
+    IsReference,
+    ConstraintFailed
+  } from "@apparts/model";
 #+END_SRC
 
 ** Filter Grammar

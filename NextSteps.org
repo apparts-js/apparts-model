@@ -1,6 +1,6 @@
 
 
-- deep fillInDefaults
+- [X] deep fillInDefaults
 - relations, by passing in other models and how they relate
   #+BEGIN_SRC typescript
     useModel({
@@ -45,8 +45,8 @@
   - Inner join with array_agg for retrieving relations? https://stackoverflow.com/a/41685553
 - export ManyModel and extend it (CustomModel)
   - pass it into makeModel
-  - OneModel derives CustomModel
-  - makeModel returns OneModel, NoneModel
+  - +OneModel derives CustomModel+
+  - +makeModel returns OneModel, NoneModel+
 - storeOrUpdate function
 - pass Context obj instead of dbs obj?
   - Context = { dbs: GenericDBS, log, ...}
@@ -65,7 +65,7 @@
 - [X] transform anyModel to TS
 - [X] transform manyModel to TS
 - [X] type of public? how to do? (return type of getPublic)
-- [ ] how to do oneModel inheritance?
+- [ ] +how to do oneModel inheritance?+
 
 
 Sandwich model:
@@ -82,7 +82,7 @@ Sandwich model:
 
 
 
-
+* Repository
 
 DbContextRepository added to request Context
 - can cache stuff
@@ -115,3 +115,109 @@ dbs.transaction(dbs => {
   transactionRepo = new DbContextRepository(dbs);
 });
 #+END_SRC
+
+
+
+Repo inherits from Manager (formerly factory)
+#+BEGIN_SRC js
+class GenericRepository extends Manager<T> {
+  constructur(manager: Manager<T>) {
+    this._manager = manager;
+  }
+}
+
+class DbRepository extends GenericRepository {
+  constructur(manager: Manager) {
+    super(manager);
+  }
+  initialize(queriable) {
+    this._queriable = queriable;
+  }
+  load() {
+    // ...
+  }
+  // ...
+}
+
+
+const user = userManager({..}); // or
+const user = userManager.new({..});
+
+const user = await userManager.repo(dbs).load({...});
+await userManager(user).repo(dbs).store(); // or
+await userManager.repo(dbs).store(user);
+
+const userRepo = userManager.repo(dbs) // returns DbRepository extends EntityManager
+// hence userRepo has all the functions a userManager has:
+const newUser = userRepo.new({ ... });
+
+#+END_SRC
+
+
+* Loading Relations:
+
+- prevent the situation we have on our .net code base, where we can
+  load relations but cannot properly type that they are loaded. Issue
+  is: Either you do not use these relations (which would be a shame)
+  or you don't know how to pass them to functions while also making
+  sure, that they receive an entity that is loaded with the subentities:
+  #+BEGIN_SRC csharp
+    public AFunction(Table table) {
+      table.Configuration.Location.Name = "Renamed location"
+    }
+
+    var table = _context.Table
+        .Where(e => e.Id == 1932)
+        .Include(e => e.Configuration)
+        .ThenInclude(e => e.ConnectedSystem)
+        .ThenInclude(e => e.Location)
+        .FirstOrDefault();
+    AFunction(table) // ok
+
+    var table2 = _context.Table
+        .Where(e => e.Id == 1932);
+    AFunction(table2) // error
+  #+END_SRC
+
+- One Option: Use Lazy loading with js getters and setters. They can be
+  used on plain objects.
+  #+BEGIN_SRC js
+    const a = {
+      test: 3
+    };
+    a.__defineGetter__("test", () => 4)
+    a.test // -> 4 
+  #+END_SRC
+  - Nope. Can't do that. If we need to fetch in here, it would be
+    async. Then the getter could only return a Promise. That sucks
+- Easiest option: Just don't be too clever and just return new
+  entities
+  #+BEGIN_SRC js
+    const user = userFactory.load({...});
+
+    const posts = await userFactory(repo).getRelation("posts");
+    // modify posts
+    postsFactory(repo).store(posts);
+  #+END_SRC
+
+
+
+Optimistic concurrency check (inspired by entity framework):
+- Only one column:
+  - One column X has a "ConcurrencyCheck" Flag
+  - Do your (side effect free) calculations, then, when done,
+    #+BEGIN_SRC sql
+    UPDATE <table with data> WHERE <where clause>
+       AND X = <Value of X when we started the calculation>;
+    #+END_SRC
+    - If 1 row is updated, all ok
+    - If 0 rows updated: Concurrency failure
+      + Do everything again (get data, process data, update)
+      + Reject change
+  - Also for =DELETE=
+- Whole table:
+  - Add a column "rowVersion" that has an ever increasing number
+  - Each change increases the number
+  - "rowVersion" is used as as if it had a "ConcurrencyCheck" Flag
+  - Only really viable, if all changing requests update the
+    "rowVersion" column, hence support from model needed
