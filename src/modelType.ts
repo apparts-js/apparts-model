@@ -1,4 +1,10 @@
-import { GenericQueriable, GenericQuery, Order, Params } from "@apparts/db";
+import {
+  GenericQueriable,
+  GenericQuery,
+  GenericTransaction,
+  Order,
+  Params,
+} from "@apparts/db";
 import {
   checkType,
   fillInDefaultsStrict,
@@ -11,6 +17,7 @@ import {
   InferIsKeyType,
 } from "@apparts/types";
 import {
+  ConcurrencyError,
   ConstraintFailed,
   DoesExist,
   IsReference,
@@ -37,16 +44,18 @@ type AllParams<TypeSchema extends Obj<Required, any>> = Partial<{
 }>;
 
 export abstract class Model<TypeSchema extends Obj<Required, any>> {
-  _dbs: GenericQueriable;
-  _fromDB: boolean;
-  _collection: string;
-  _types: Record<string, Type>;
-  _keys: string[];
-  _autos: string[];
-  _loadedKeys: unknown[][] | undefined;
-  _contentWithDerived: InferType<TypeSchema>[] | undefined;
+  protected _dbs: GenericQueriable;
+  protected _fromDB: boolean;
+  protected _collection: string;
+  protected _types: Record<string, Type>;
+  protected _keys: string[];
+  protected _autos: string[];
+  protected _loadedKeys: unknown[][] | undefined;
+  protected _contentWithDerived: InferType<TypeSchema>[] | undefined;
   isOne = false;
-  _contents: InferNotDerivedType<TypeSchema>[];
+  protected _contents: InferNotDerivedType<TypeSchema>[];
+  // *Shallow* copy of contents. Used to check if contents have changed.
+  protected _contentsAsLoaded: InferNotDerivedType<TypeSchema>[];
 
   // TODO: Should contents really be Partial?
   constructor(dbs: GenericQueriable) {
@@ -58,6 +67,7 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
     this._keys = [];
     this._autos = [];
     this._contents = [];
+    this._contentsAsLoaded = [];
   }
 
   get content() {
@@ -95,7 +105,7 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
     offset?: number,
     order?: Order
   ): Promise<this> {
-    this._contents = await this._load(
+    await this._load(
       this._dbs.collection(this._collection).find(filter, limit, offset, order)
     );
     return this;
@@ -106,11 +116,11 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
       this._dbs.collection(this._collection).find(filter, 2)
     );
     if (something) {
+      this._contents = [];
       throw new NotUnique(this._collection, { filter, content, something });
     } else if (!content) {
       throw new NotFound(this._collection, filter);
     }
-    this._contents = [content];
     this.isOne = true;
     return this;
   }
@@ -120,6 +130,7 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
       this._dbs.collection(this._collection).find(filter, 2)
     );
     if (contents.length > 0) {
+      this._contents = [];
       throw new DoesExist(this._collection, {
         shouldNotExist: filter,
         butDoes: contents,
@@ -152,7 +163,7 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
       });
     }
 
-    this._contents = await this._load(
+    await this._load(
       this._dbs.collection(this._collection).findByIds(ids, limit, offset)
     );
     return this;
@@ -169,11 +180,12 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
       this._dbs.collection(this._collection).findByIds(filter, 2)
     );
     if (something) {
+      this._contents = [];
       throw new NotUnique(this._collection, { filter, content, something });
     } else if (!content) {
       throw new NotFound(this._collection, filter);
     }
-    this._contents = [content];
+
     this.isOne = true;
     return this;
   }
@@ -204,11 +216,6 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
         throw new UnexpectedModelError("[ManyModel]", err);
       }
     }
-    return this;
-  }
-
-  async update() {
-    await this._update(this._contents);
     return this;
   }
 
@@ -255,7 +262,7 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
     }));
   }
 
-  _fillInDefaults(values: InferNotDerivedType<TypeSchema>[]) {
+  protected _fillInDefaults(values: InferNotDerivedType<TypeSchema>[]) {
     return values.map((value) =>
       fillInDefaultsStrict(
         {
@@ -267,7 +274,7 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
     );
   }
 
-  async _load(f: GenericQuery) {
+  protected async _load(f: GenericQuery) {
     if (this._fromDB) {
       throw new Error(
         "[AnyModel] load on already loaded model, Refusing to load twice"
@@ -275,12 +282,13 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
     }
     const cs = await f.toArray<InferNotDerivedType<TypeSchema>>();
     this._fromDB = true;
-    const contents = cs.map((c) => this._convertIds(c));
+    this._contents = cs.map((c) => this._convertIds(c));
+    this._contentsAsLoaded = this._contents.map((c) => ({ ...c }));
     this._loadedKeys = cs.map((c) => this._keys.map((key) => c[key]));
-    return contents;
+    return this._contents;
   }
 
-  async _update(contents: InferNotDerivedType<TypeSchema>[]) {
+  protected _ensureKeysSame(contents: InferNotDerivedType<TypeSchema>[]) {
     const newKeys = contents.map((c) => this._keys.map((key) => c[key]));
     if (
       !this._loadedKeys ||
@@ -301,6 +309,15 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
           JSON.stringify(newKeys, undefined, 2)
       );
     }
+  }
+
+  async update() {
+    await this._update(this._contents);
+    return this;
+  }
+
+  protected async _update(contents: InferNotDerivedType<TypeSchema>[]) {
+    this._ensureKeysSame(contents);
     this._checkTypes(contents);
 
     if (contents.length > 1) {
@@ -310,7 +327,56 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
     }
   }
 
-  _removeAutos(c: InferNotDerivedType<TypeSchema>) {
+  async updateWithConcurrencyCheckOn(
+    unchanged: (keyof InferNotDerivedType<TypeSchema>)[]
+  ) {
+    await this._updateWithConcurrencyCheckOn(this._contents, unchanged);
+    return this;
+  }
+
+  protected async _updateWithConcurrencyCheckOn(
+    contents: InferNotDerivedType<TypeSchema>[],
+    unchanged: (keyof InferNotDerivedType<TypeSchema>)[]
+  ) {
+    this._ensureKeysSame(contents);
+    this._checkTypes(contents);
+
+    for (const key of unchanged) {
+      if (!(key in this._types)) {
+        throw new Error(
+          `[AnyModel] Tried to update with unknown key: ${String(key)}`
+        );
+      }
+    }
+
+    let success = true;
+    await this._dbs.transaction(async (t) => {
+      if (contents.length > 1) {
+        success = (
+          await Promise.all(
+            contents.map((c) =>
+              this._updateOneWithConcurrencyCheckOn(t, c, unchanged)
+            )
+          )
+        ).reduce((acc, val) => acc && val, true);
+      } else if (contents.length > 0) {
+        success = await this._updateOneWithConcurrencyCheckOn(
+          t,
+          contents[0],
+          unchanged
+        );
+      }
+      if (!success) {
+        throw new ConcurrencyError(
+          this._collection,
+          contents.map((c) => this._getKeyFilter(c)),
+          unchanged
+        );
+      }
+    });
+  }
+
+  protected _removeAutos(c: InferNotDerivedType<TypeSchema>) {
     const val = { ...c };
     for (const auto of this._autos) {
       delete val[auto];
@@ -318,7 +384,7 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
     return val;
   }
 
-  _getKeyFilter(c: InferNotDerivedType<TypeSchema>) {
+  protected _getKeyFilter(c: InferNotDerivedType<TypeSchema>) {
     const filter = {};
     for (const key of this._keys) {
       filter[key] = c[key];
@@ -326,13 +392,50 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
     return filter;
   }
 
-  async _updateOne(c: InferNotDerivedType<TypeSchema>) {
+  protected async _updateOne(c: InferNotDerivedType<TypeSchema>) {
     await this._dbs
       .collection(this._collection)
       .updateOne(this._getKeyFilter(c), this._removeAutos(c));
   }
 
-  _convertIds(c: InferNotDerivedType<TypeSchema>) {
+  protected async _updateOneWithConcurrencyCheckOn(
+    t: GenericTransaction,
+    c: InferNotDerivedType<TypeSchema>,
+    unchanged: (keyof InferNotDerivedType<TypeSchema>)[]
+  ) {
+    const unchangedVals = unchanged.reduce((acc, key) => {
+      const contentAsLoaded = this._contentsAsLoaded.find((asLoaded) => {
+        for (const key of this._keys) {
+          if (c[key] !== asLoaded[key]) {
+            return false;
+          }
+        }
+        return true;
+      });
+      if (!contentAsLoaded) {
+        throw new UnexpectedModelError(
+          "[ManyModel] updateOneWithConcurrencyCheckOn",
+          "Could not find contentAsLoaded"
+        );
+      }
+      acc[key] = contentAsLoaded[key];
+      return acc;
+    }, {} as Partial<InferNotDerivedType<TypeSchema>>);
+
+    const res = await t.collection(this._collection).updateOne(
+      {
+        ...this._getKeyFilter(c),
+        ...unchangedVals,
+      },
+      this._removeAutos(c)
+    );
+    if (res.rowCount !== 1) {
+      return false;
+    }
+    return true;
+  }
+
+  protected _convertIds(c: InferNotDerivedType<TypeSchema>) {
     for (const key in this._types) {
       if (!c[key]) {
         continue;
@@ -345,7 +448,7 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
     return c;
   }
 
-  async _store(
+  protected async _store(
     contents: InferNotDerivedType<TypeSchema>[]
   ): Promise<InferNotDerivedType<TypeSchema>[]> {
     if (contents.length < 1) {
@@ -367,7 +470,7 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
     return contents;
   }
 
-  _checkTypes(contents: InferNotDerivedType<TypeSchema>[]) {
+  protected _checkTypes(contents: InferNotDerivedType<TypeSchema>[]) {
     for (const c of contents) {
       for (const key in this._types) {
         if (this._autos.indexOf(key) !== -1) {
@@ -402,7 +505,7 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
     return true;
   }
 
-  async _getWithDerived(
+  protected async _getWithDerived(
     contents: InferNotDerivedType<TypeSchema>[]
   ): Promise<InferType<TypeSchema>[]> {
     if (this._contentWithDerived) {
@@ -426,7 +529,7 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
     return derivedData;
   }
 
-  async _getPublicWithTypes(
+  protected async _getPublicWithTypes(
     contents: InferNotDerivedType<TypeSchema>[]
   ): Promise<InferPublicType<TypeSchema>[]> {
     const contentsDerived = await this._getWithDerived(contents);

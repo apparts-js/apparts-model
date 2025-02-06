@@ -97,3 +97,14 @@ ${buildErrorMessage(more)}`
     );
   }
 }
+
+export class ConcurrencyError extends Error {
+  constructor(model, keys, unchanged) {
+    super(
+      `Concurrency error, object changed in DB since last read:
+Collection: ${model}
+Keys: ${JSON.stringify(keys, undefined, 2)}
+Unchanged: ${JSON.stringify(unchanged, undefined, 2)}`
+    );
+  }
+}

@@ -96,6 +96,11 @@ _Functions:_
   [<key2id1>, ...], ...}~.
 - ~async store()~ :: Saves to the database
 - ~async update()~ :: Updates the values, if you updated the contents.
+- ~async updateWithConcurrencyCheckOn(unchanged: string[])~ :: Updates
+  the values, if you updated the contents and if the contents of the
+  fields, specified as a list of keys in =unchanged= are the same in the
+  database since loading the model. If the content is different a
+  =ConcurrencyError= is thrown.
 - ~length()~ :: Length of ~contents~
 - ~set(field, val)~ :: Set a field on all elements
 - ~setF(field, f)~ :: Set a field on all elements through a function,
@@ -118,6 +123,7 @@ _Functions:_
 - ~NotUnique~
 - =IsReference=
 - =ConstraintFailed=
+- =ConcurrencyError=
 
 #+BEGIN_SRC js
   import {
@@ -125,7 +131,8 @@ _Functions:_
     NotFound,
     DoesExist,
     IsReference,
-    ConstraintFailed
+    ConstraintFailed,
+    ConcurrencyError
   } from "@apparts/model";
 #+END_SRC
 

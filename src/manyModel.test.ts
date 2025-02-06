@@ -23,6 +23,7 @@ import {
   NotFound,
   NotUnique,
   UnexpectedModelError,
+  ConcurrencyError,
 } from "./errors";
 import { GenericDBS } from "@apparts/db";
 
@@ -214,6 +215,132 @@ describe("Update", () => {
       { test: 10, a: 4002, id: id1 },
       { test: 11, a: 4002, id: id2 },
       { test: 12, a: 4002, id: id3 },
+    ]);
+  });
+});
+
+describe("Update with concurrency check", () => {
+  test("updateWithConcurrencyCheckOn", async () => {
+    const ms = new Models(dbs);
+
+    const [{ id: id1 }] = (await new Models(dbs, [{ test: 10, a: 4 }]).store())
+      .contents;
+    const [{ id: id2 }, { id: id3 }] = (
+      await new Models(dbs, [
+        { test: 11, a: 4 },
+        { test: 12, a: 4 },
+      ]).store()
+    ).contents;
+    await ms.load({ a: 4 });
+    ms.contents.forEach((c) => (c.a = 1001));
+    await ms.updateWithConcurrencyCheckOn(["test"]);
+    const newms = await new Models(dbs).load({ a: 1001 });
+
+    expect(newms.contents).toMatchObject([
+      { test: 10, a: 1001, id: id1 },
+      { test: 11, a: 1001, id: id2 },
+      { test: 12, a: 1001, id: id3 },
+    ]);
+  });
+
+  test("updateWithConcurrencyCheckOn fails, keys changed", async () => {
+    const [{ id: id1 }] = (
+      await new Models(dbs, [{ test: 10, a: 5000 }]).store()
+    ).contents;
+    const [{ id: id2 }, { id: id3 }] = (
+      await new Models(dbs, [
+        { test: 11, a: 5000 },
+        { test: 12, a: 5000 },
+      ]).store()
+    ).contents;
+    const ms = await new Models(dbs).load({ a: 5000 });
+    ms.contents.forEach((c, i) => (c.id = 1001 + i));
+    await expect(
+      async () => await ms.updateWithConcurrencyCheckOn(["test"])
+    ).rejects.toThrow(UnexpectedModelError);
+    const newms = await new Models(dbs).load({ a: 5000 });
+
+    expect(newms.contents).toMatchObject([
+      { test: 10, a: 5000, id: id1 },
+      { test: 11, a: 5000, id: id2 },
+      { test: 12, a: 5000, id: id3 },
+    ]);
+  });
+
+  test("updateWithConcurrencyCheckOn fails, length of content changed", async () => {
+    const [{ id: id1 }] = (
+      await new Models(dbs, [{ test: 10, a: 5001 }]).store()
+    ).contents;
+    const [{ id: id2 }, { id: id3 }] = (
+      await new Models(dbs, [
+        { test: 11, a: 5001 },
+        { test: 12, a: 5001 },
+      ]).store()
+    ).contents;
+    const ms = await new Models(dbs).load({ a: 5001 });
+    ms.contents = ms.contents.slice(1);
+    await expect(
+      async () => await ms.updateWithConcurrencyCheckOn(["test"])
+    ).rejects.toThrow(UnexpectedModelError);
+    const newms = await new Models(dbs).load({ a: 5001 });
+
+    expect(newms.contents).toMatchObject([
+      { test: 10, a: 5001, id: id1 },
+      { test: 11, a: 5001, id: id2 },
+      { test: 12, a: 5001, id: id3 },
+    ]);
+  });
+
+  test("updateWithConcurrencyCheckOn fails, content does not fit schema", async () => {
+    const [{ id: id1 }] = (
+      await new Models(dbs, [{ test: 10, a: 5002 }]).store()
+    ).contents;
+    const [{ id: id2 }, { id: id3 }] = (
+      await new Models(dbs, [
+        { test: 11, a: 5002 },
+        { test: 12, a: 5002 },
+      ]).store()
+    ).contents;
+    const ms = await new Models(dbs).load({ a: 5002 });
+    // @ts-expect-error test type
+    ms.contents[1].test = "sheesh";
+    await expect(
+      async () => await ms.updateWithConcurrencyCheckOn(["test"])
+    ).rejects.toThrow(TypeMissmatchError);
+    const newms = await new Models(dbs).load({ a: 5002 });
+
+    expect(newms.contents).toMatchObject([
+      { test: 10, a: 5002, id: id1 },
+      { test: 11, a: 5002, id: id2 },
+      { test: 12, a: 5002, id: id3 },
+    ]);
+  });
+
+  test("updateWithConcurrencyCheckOn fails, on current changes", async () => {
+    const [{ id: id1 }, { id: id2 }, { id: id3 }] = (
+      await new Models(dbs, [
+        { test: 10, a: 5003 },
+        { test: 11, a: 5003 },
+        { test: 12, a: 5003 },
+      ]).store()
+    ).contents;
+
+    const ms = await new Models(dbs).load({ a: 5003 });
+
+    const msChanged = await new Models(dbs).load({ a: 5003 });
+    msChanged.contents[1].test = 1000;
+    await msChanged.update();
+
+    ms.contents.forEach((c) => (c.test = 1001));
+    await expect(
+      async () => await ms.updateWithConcurrencyCheckOn(["test"])
+    ).rejects.toThrow(ConcurrencyError);
+
+    const newms = await new Models(dbs).load({ a: 5003 });
+    expect(newms.contents).toMatchObject([
+      { test: 10, a: 5003, id: id1 },
+      { test: 1000, a: 5003, id: id2 },
+      { test: 12, a: 5003, id: id3 },
     ]);
   });
 });
