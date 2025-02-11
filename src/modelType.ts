@@ -203,7 +203,7 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
 
   async store() {
     try {
-      this._contents = await this._store(this._contents);
+      await this._store(this._contents);
     } catch (err) {
       // MONGO
       if ((err as Record<string, any>)?._code === 1) {
@@ -450,9 +450,11 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
 
   protected async _store(
     contents: InferNotDerivedType<TypeSchema>[]
-  ): Promise<InferNotDerivedType<TypeSchema>[]> {
+  ): Promise<void> {
     if (contents.length < 1) {
-      return Promise.resolve([]);
+      this._contents = [];
+      this._contentsAsLoaded = [];
+      return;
     }
     this._checkTypes(contents);
 
@@ -466,8 +468,10 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
         ...ids[i],
       }));
     }
+    this._contents = contents;
+    this._contentsAsLoaded = this._contents.map((c) => ({ ...c }));
     this._loadedKeys = contents.map((c) => this._keys.map((key) => c[key]));
-    return contents;
+    return;
   }
 
   protected _checkTypes(contents: InferNotDerivedType<TypeSchema>[]) {
