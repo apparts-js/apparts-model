@@ -56,7 +56,7 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
   protected _contentWithDerived: InferType<TypeSchema>[] | undefined;
   isOne = false;
   protected _contents: InferNotDerivedType<TypeSchema>[];
-  // *Shallow* copy of contents. Used to check if contents have changed.
+  // *Deep* copy of contents. Used to check if contents have changed.
   protected _contentsAsLoaded: InferNotDerivedType<TypeSchema>[];
 
   // TODO: Should contents really be Partial?
@@ -222,6 +222,18 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
     return this;
   }
 
+  async update() {
+    await this._update(this._contents);
+    return this;
+  }
+
+  async updateWithConcurrencyCheckOn(
+    unchanged: (keyof InferNotDerivedType<TypeSchema>)[]
+  ) {
+    await this._updateWithConcurrencyCheckOn(this._contents, unchanged);
+    return this;
+  }
+
   length() {
     return this._contents.length;
   }
@@ -286,9 +298,15 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
     const cs = await f.toArray<InferNotDerivedType<TypeSchema>>();
     this._fromDB = true;
     this._contents = cs.map((c) => this._convertIds(c));
-    this._contentsAsLoaded = array(this._schema).deepClone(this._contents);
+    this.setContentsAsLoadedFromContents(this._contents);
     this._loadedKeys = cs.map((c) => this._keys.map((key) => c[key]));
     return this._contents;
+  }
+
+  protected setContentsAsLoadedFromContents(
+    c: InferNotDerivedType<TypeSchema>[]
+  ) {
+    this._contentsAsLoaded = array(this._schema).deepClone(c);
   }
 
   protected _ensureKeysSame(contents: InferNotDerivedType<TypeSchema>[]) {
@@ -314,11 +332,6 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
     }
   }
 
-  async update() {
-    await this._update(this._contents);
-    return this;
-  }
-
   protected async _update(contents: InferNotDerivedType<TypeSchema>[]) {
     this._ensureKeysSame(contents);
     this._checkTypes(contents);
@@ -328,13 +341,7 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
     } else if (contents.length > 0) {
       await this._updateOne(contents[0]);
     }
-  }
-
-  async updateWithConcurrencyCheckOn(
-    unchanged: (keyof InferNotDerivedType<TypeSchema>)[]
-  ) {
-    await this._updateWithConcurrencyCheckOn(this._contents, unchanged);
-    return this;
+    this.setContentsAsLoadedFromContents(this._contents);
   }
 
   protected async _updateWithConcurrencyCheckOn(
@@ -376,6 +383,7 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
           unchanged
         );
       }
+      this.setContentsAsLoadedFromContents(this._contents);
     });
   }
 
@@ -497,7 +505,7 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
       }));
     }
     this._contents = contents;
-    this._contentsAsLoaded = array(this._schema).deepClone(this._contents);
+    this.setContentsAsLoadedFromContents(this._contents);
     this._loadedKeys = contents.map((c) => this._keys.map((key) => c[key]));
     return;
   }

@@ -308,11 +308,13 @@ describe("Update with concurrency check", () => {
   test("updateWithConcurrencyCheckOn on just updated model", async () => {
     const ms = await new Models(dbs, [{ test: 10, a: 99 }]).store();
     ms.contents.forEach((c) => (c.a = 1011));
-    await ms.updateWithConcurrencyCheckOn(["test"]);
-    const newms = await new Models(dbs).load({ a: 1011 });
+    await ms.updateWithConcurrencyCheckOn(["a"]);
+    ms.contents.forEach((c) => (c.a = 1012));
+    await ms.updateWithConcurrencyCheckOn(["a"]);
 
+    const newms = await new Models(dbs).load({ a: 1012 });
     expect(newms.contents).toMatchObject([
-      { test: 10, a: 1011, id: ms.content.id },
+      { test: 10, a: 1012, id: ms.content.id },
     ]);
   });
 
