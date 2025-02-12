@@ -15,6 +15,7 @@ import {
   Required,
   Type,
   InferIsKeyType,
+  array,
 } from "@apparts/types";
 import {
   ConcurrencyError,
@@ -48,6 +49,7 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
   protected _fromDB: boolean;
   protected _collection: string;
   protected _types: Record<string, Type>;
+  protected _schema: TypeSchema;
   protected _keys: string[];
   protected _autos: string[];
   protected _loadedKeys: unknown[][] | undefined;
@@ -63,6 +65,7 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
     this._fromDB = false;
     this._collection = "";
     this._types = {};
+    this._schema = {} as TypeSchema;
 
     this._keys = [];
     this._autos = [];
@@ -283,7 +286,7 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
     const cs = await f.toArray<InferNotDerivedType<TypeSchema>>();
     this._fromDB = true;
     this._contents = cs.map((c) => this._convertIds(c));
-    this._contentsAsLoaded = this._contents.map((c) => ({ ...c }));
+    this._contentsAsLoaded = array(this._schema).deepClone(this._contents);
     this._loadedKeys = cs.map((c) => this._keys.map((key) => c[key]));
     return this._contents;
   }
@@ -376,6 +379,24 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
     });
   }
 
+  protected _findContentAsLoaded(c: InferIsKeyType<TypeSchema>) {
+    const contentAsLoaded = this._contentsAsLoaded.find((asLoaded) => {
+      for (const key of this._keys) {
+        if (c[key] !== asLoaded[key]) {
+          return false;
+        }
+      }
+      return true;
+    });
+    if (!contentAsLoaded) {
+      throw new UnexpectedModelError(
+        "[ManyModel] _findContentAsLoaded",
+        "Could not find contentAsLoaded"
+      );
+    }
+    return contentAsLoaded;
+  }
+
   protected _removeAutos(c: InferNotDerivedType<TypeSchema>) {
     const val = { ...c };
     for (const auto of this._autos) {
@@ -392,10 +413,30 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
     return filter;
   }
 
+  protected _removeUnchanged(c: InferNotDerivedType<TypeSchema>) {
+    const val = { ...c };
+    const contentAsLoaded = this._findContentAsLoaded(c);
+    for (const key in this._types) {
+      if (this._types[key].auto || this._types[key].derived) {
+        continue;
+      }
+      if (
+        this._schema.getKeys()[key].deepEqual(val[key], contentAsLoaded[key])
+      ) {
+        delete val[key];
+      }
+    }
+    return val;
+  }
+
   protected async _updateOne(c: InferNotDerivedType<TypeSchema>) {
+    const cleanedObj = this._removeAutos(this._removeUnchanged(c));
+    if (Object.keys(cleanedObj).length === 0) {
+      return;
+    }
     await this._dbs
       .collection(this._collection)
-      .updateOne(this._getKeyFilter(c), this._removeAutos(c));
+      .updateOne(this._getKeyFilter(c), cleanedObj);
   }
 
   protected async _updateOneWithConcurrencyCheckOn(
@@ -403,21 +444,8 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
     c: InferNotDerivedType<TypeSchema>,
     unchanged: (keyof InferNotDerivedType<TypeSchema>)[]
   ) {
+    const contentAsLoaded = this._findContentAsLoaded(c);
     const unchangedVals = unchanged.reduce((acc, key) => {
-      const contentAsLoaded = this._contentsAsLoaded.find((asLoaded) => {
-        for (const key of this._keys) {
-          if (c[key] !== asLoaded[key]) {
-            return false;
-          }
-        }
-        return true;
-      });
-      if (!contentAsLoaded) {
-        throw new UnexpectedModelError(
-          "[ManyModel] updateOneWithConcurrencyCheckOn",
-          "Could not find contentAsLoaded"
-        );
-      }
       acc[key] = contentAsLoaded[key];
       return acc;
     }, {} as Partial<InferNotDerivedType<TypeSchema>>);
@@ -469,7 +497,7 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
       }));
     }
     this._contents = contents;
-    this._contentsAsLoaded = this._contents.map((c) => ({ ...c }));
+    this._contentsAsLoaded = array(this._schema).deepClone(this._contents);
     this._loadedKeys = contents.map((c) => this._keys.map((key) => c[key]));
     return;
   }

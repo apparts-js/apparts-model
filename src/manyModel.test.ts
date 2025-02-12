@@ -30,16 +30,16 @@ import { GenericDBS } from "@apparts/db";
 class Models extends BaseModel<typeof type> {}
 useModel(Models, { collection: "users", typeSchema: type });
 
-class Models2 extends BaseModel<typeof multiKeyType> {}
-useModel(Models2, { collection: "users2", typeSchema: multiKeyType });
-class Models3 extends BaseModel<typeof noAutoType> {}
-useModel(Models3, { collection: "users3", typeSchema: noAutoType });
-class Models4 extends BaseModel<typeof foreignType> {}
-useModel(Models4, { collection: "comment", typeSchema: foreignType });
-class Models5 extends BaseModel<typeof derivedType> {}
-useModel(Models5, { collection: "derived", typeSchema: derivedType });
-class Models6 extends BaseModel<typeof defaultType> {}
-useModel(Models6, { collection: "wdefault", typeSchema: defaultType });
+class ModelsMultiKey extends BaseModel<typeof multiKeyType> {}
+useModel(ModelsMultiKey, { collection: "users2", typeSchema: multiKeyType });
+class ModelsNoAuto extends BaseModel<typeof noAutoType> {}
+useModel(ModelsNoAuto, { collection: "users3", typeSchema: noAutoType });
+class ModelsForeign extends BaseModel<typeof foreignType> {}
+useModel(ModelsForeign, { collection: "comment", typeSchema: foreignType });
+class ModelsDerived extends BaseModel<typeof derivedType> {}
+useModel(ModelsDerived, { collection: "derived", typeSchema: derivedType });
+class ModelsWDefault extends BaseModel<typeof defaultType> {}
+useModel(ModelsWDefault, { collection: "wdefault", typeSchema: defaultType });
 
 let dbs: GenericDBS;
 beforeAll(async () => {
@@ -75,7 +75,7 @@ describe("Creation", () => {
   });
 
   test("creation of many with derived", async () => {
-    const m = new Models5(dbs, [{ test: 1 }, { test: 2 }]);
+    const m = new ModelsDerived(dbs, [{ test: 1 }, { test: 2 }]);
     await expect(m.store()).resolves.toBeTruthy();
     expect(m.contents).toStrictEqual([
       { id: 1, test: 1 },
@@ -84,7 +84,7 @@ describe("Creation", () => {
   });
 
   test("creation of many with default", async () => {
-    const m = new Models6(dbs, [
+    const m = new ModelsWDefault(dbs, [
       {
         objWithDefault: {},
       },
@@ -142,6 +142,33 @@ describe("Update", () => {
       { test: 10, a: 999, id: id1 },
       { test: 11, a: 999, id: id2 },
       { test: 12, a: 999, id: id3 },
+    ]);
+  });
+
+  test("update with nested obj", async () => {
+    const ms = new ModelsWDefault(dbs);
+
+    const [{ id: id1 }] = (
+      await new ModelsWDefault(dbs, [
+        {
+          objWithDefault: {
+            deepHasDefault: "abc",
+            deepHasDefaultFn: "def",
+          },
+        },
+      ]).store()
+    ).contents;
+
+    await ms.load({ id: id1 });
+    ms.contents.forEach((c) => (c.objWithDefault.deepHasDefault = "ghi"));
+    await ms.update();
+    const newms = await new ModelsWDefault(dbs).load({ id: id1 });
+
+    expect(newms.contents).toMatchObject([
+      {
+        id: id1,
+        objWithDefault: { deepHasDefault: "ghi", deepHasDefaultFn: "def" },
+      },
     ]);
   });
 
@@ -347,7 +374,9 @@ describe("Update with concurrency check", () => {
       async () => await ms.updateWithConcurrencyCheckOn(["test"])
     ).rejects.toThrow(ConcurrencyError);
 
-    const newms = await new Models(dbs).load({ a: 5003 });
+    const newms = await new Models(dbs).load({ a: 5003 }, undefined, 0, [
+      { dir: "ASC", key: "id" },
+    ]);
     expect(newms.contents).toMatchObject([
       { test: 10, a: 5003, id: id1 },
       { test: 1000, a: 5003, id: id2 },
@@ -373,7 +402,7 @@ describe("Delete", () => {
 describe("Constrained", () => {
   test("insert constrained", async () => {
     await expect(
-      new Models4(dbs, [{ userid: 1000, comment: "a" }]).store()
+      new ModelsForeign(dbs, [{ userid: 1000, comment: "a" }]).store()
     ).rejects.toThrow(ConstraintFailed);
   });
 
@@ -383,14 +412,14 @@ describe("Constrained", () => {
       { test: 50 },
       { test: 50 },
     ]).store();
-    await new Models4(dbs, [{ userid: ms.contents[1].id }]).store();
+    await new ModelsForeign(dbs, [{ userid: ms.contents[1].id }]).store();
 
     const m2 = await new Models(dbs).load({ test: 50 });
     await expect(async () => await m2.deleteAll()).rejects.toThrow(IsReference);
 
     const msNew = await new Models(dbs).load({ test: 50 });
     await expect(msNew.contents).toMatchObject(ms.contents);
-    await expect(new Models4(dbs).load({ userid: ms.contents[1].id }));
+    await expect(new ModelsForeign(dbs).load({ userid: ms.contents[1].id }));
   });
 });
 
@@ -464,10 +493,10 @@ describe("loadByKeys", () => {
   });
 
   test("loadByKeys, multi key", async () => {
-    const m1 = await new Models2(dbs, [{ test: 1, a: 7 }]).store();
-    const m3 = await new Models2(dbs, [{ test: 1 }]).store();
+    const m1 = await new ModelsMultiKey(dbs, [{ test: 1, a: 7 }]).store();
+    const m3 = await new ModelsMultiKey(dbs, [{ test: 1 }]).store();
 
-    const mres = await new Models2(dbs).loadByKeys({
+    const mres = await new ModelsMultiKey(dbs).loadByKeys({
       id: [m1.contents[0].id, m3.contents[0].id],
       test: 1,
     });
@@ -485,7 +514,7 @@ describe("loadByKeys", () => {
       },
     ]);
     await expect(
-      new Models2(dbs).loadByKeys(
+      new ModelsMultiKey(dbs).loadByKeys(
         // @ts-expect-error test type
         { id: [m1.contents[0].id] }
       )
@@ -518,12 +547,12 @@ describe("loadOneByKeys", () => {
   });
 
   test("loadOneByKeys, multi key", async () => {
-    const m1 = await new Models2(dbs, [
+    const m1 = await new ModelsMultiKey(dbs, [
       { test: 1, a: 7 },
       { test: 2, a: 7 },
     ]).store();
 
-    const mres = await new Models2(dbs).loadOneByKeys({
+    const mres = await new ModelsMultiKey(dbs).loadOneByKeys({
       id: m1.contents[0].id,
       test: 1,
     });
@@ -537,7 +566,7 @@ describe("loadOneByKeys", () => {
       },
     ]);
     await expect(
-      new Models2(dbs).loadOneByKeys(
+      new ModelsMultiKey(dbs).loadOneByKeys(
         // @ts-expect-error test type
         { id: [m1.contents[0].id] }
       )
@@ -670,7 +699,7 @@ describe("lodeNone", () => {
 describe("Multi key", () => {
   test("insert, multi key, no auto", async () => {
     await expect(
-      new Models3(dbs, [
+      new ModelsNoAuto(dbs, [
         { email: "test1@test.de", name: "Peter", a: 12 },
         { email: "test1@test.de", name: "Peter", a: 12 },
       ]).store()
@@ -678,30 +707,32 @@ describe("Multi key", () => {
   });
 
   test("delete, multi key, no auto", async () => {
-    await new Models3(dbs, [{ email: "test1@test.de", name: "Franz" }]).store();
-    const m1 = await new Models3(dbs).load({ email: "test1@test.de" });
+    await new ModelsNoAuto(dbs, [
+      { email: "test1@test.de", name: "Franz" },
+    ]).store();
+    const m1 = await new ModelsNoAuto(dbs).load({ email: "test1@test.de" });
     await expect(m1.deleteAll()).resolves.toBe(m1);
     await expect(
       (
-        await new Models3(dbs).load({ email: "test1@test.de" })
+        await new ModelsNoAuto(dbs).load({ email: "test1@test.de" })
       ).contents.length
     ).toBe(0);
   });
 
   test("update, multi key, no auto", async () => {
-    await new Models3(dbs, [
+    await new ModelsNoAuto(dbs, [
       { email: "test1@test.de", name: "Franz" },
       { email: "test1@test.de", name: "Peter" },
       { email: "test1@test.de", name: "Fritz" },
     ]).store();
-    const tests = await new Models3(dbs).load({
+    const tests = await new ModelsNoAuto(dbs).load({
       email: "test1@test.de",
     });
     tests.contents = tests.contents.map((c) => ({ ...c, a: 101 }));
     await expect(tests.update()).resolves.toBe(tests);
     await expect(
       (
-        await new Models3(dbs).loadByKeys({
+        await new ModelsNoAuto(dbs).loadByKeys({
           email: "test1@test.de",
           name: "Peter",
         })
@@ -709,7 +740,7 @@ describe("Multi key", () => {
     ).toMatchObject([{ email: "test1@test.de", name: "Peter", a: 101 }]);
     await expect(
       (
-        await new Models3(dbs).loadByKeys({
+        await new ModelsNoAuto(dbs).loadByKeys({
           email: "test1@test.de",
           name: "Franz",
         })
@@ -717,7 +748,7 @@ describe("Multi key", () => {
     ).toMatchObject([{ email: "test1@test.de", name: "Franz", a: 101 }]);
     await expect(
       (
-        await new Models3(dbs).loadByKeys({
+        await new ModelsNoAuto(dbs).loadByKeys({
           email: "test1@test.de",
           name: "Fritz",
         })
@@ -726,12 +757,12 @@ describe("Multi key", () => {
   });
 
   test("update fails, multi key, keys changed", async () => {
-    await new Models3(dbs, [
+    await new ModelsNoAuto(dbs, [
       { email: "test1brr@test.de", name: "Franz" },
       { email: "test1brr@test.de", name: "Peter" },
       { email: "test1brr@test.de", name: "Fritz" },
     ]).store();
-    const tests = await new Models3(dbs).load({
+    const tests = await new ModelsNoAuto(dbs).load({
       email: "test1brr@test.de",
     });
     tests.contents = tests.contents.map((c) => ({ ...c, email: "juu" }));
@@ -739,7 +770,7 @@ describe("Multi key", () => {
       UnexpectedModelError
     );
 
-    const tests2 = await new Models3(dbs).load({
+    const tests2 = await new ModelsNoAuto(dbs).load({
       email: "test1brr@test.de",
     });
     tests2.contents = tests.contents.map((c) => ({ ...c, name: "juu" }));
@@ -749,7 +780,7 @@ describe("Multi key", () => {
 
     expect(
       (
-        await new Models3(dbs).loadByKeys({
+        await new ModelsNoAuto(dbs).loadByKeys({
           email: "test1brr@test.de",
           name: "Peter",
         })
@@ -757,7 +788,7 @@ describe("Multi key", () => {
     ).toMatchObject([{ email: "test1brr@test.de", name: "Peter" }]);
     expect(
       (
-        await new Models3(dbs).loadByKeys({
+        await new ModelsNoAuto(dbs).loadByKeys({
           email: "test1brr@test.de",
           name: "Franz",
         })
@@ -765,7 +796,7 @@ describe("Multi key", () => {
     ).toMatchObject([{ email: "test1brr@test.de", name: "Franz" }]);
     expect(
       (
-        await new Models3(dbs).loadByKeys({
+        await new ModelsNoAuto(dbs).loadByKeys({
           email: "test1brr@test.de",
           name: "Fritz",
         })
@@ -776,7 +807,7 @@ describe("Multi key", () => {
 
 describe("Get public", () => {
   test("getPublic with derived", async () => {
-    const m1 = await new Models5(dbs, [
+    const m1 = await new ModelsDerived(dbs, [
       {
         test: 100,
       },
@@ -784,7 +815,7 @@ describe("Get public", () => {
         test: 100,
       },
     ]).store();
-    const m2 = await new Models5(dbs).load({ test: 100 });
+    const m2 = await new ModelsDerived(dbs).load({ test: 100 });
     const publicVals1 = await m1.getPublic();
     const publicVals2 = await m2.getPublic();
     expect(publicVals1).toStrictEqual([

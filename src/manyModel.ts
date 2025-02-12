@@ -28,7 +28,7 @@ export abstract class ManyModel<
       );
     this._collection = getCollection();
     const types = getSchema().getModelType();
-
+    this._schema = getSchema();
     this._types = types;
 
     this._keys = Object.keys(types).filter((key) => types[key].key);

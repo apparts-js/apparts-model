@@ -9,5 +9,6 @@ module.exports = {
     maxPoolSize: 1,
     connectionTimeoutMillis: 10000,
     idleTimeoutMillis: 10000,
+    logs: "errors",
   },
 };
