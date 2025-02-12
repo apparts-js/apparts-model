@@ -49,6 +49,15 @@ afterAll(async () => {
   await teardown();
 });
 
+afterEach(async () => {
+  await (await new ModelsForeign(dbs).load({})).deleteAll();
+  await (await new Models(dbs).load({})).deleteAll();
+  await (await new ModelsMultiKey(dbs).load({})).deleteAll();
+  await (await new ModelsNoAuto(dbs).load({})).deleteAll();
+  await (await new ModelsDerived(dbs).load({})).deleteAll();
+  await (await new ModelsWDefault(dbs).load({})).deleteAll();
+});
+
 describe("Static properties", () => {
   it("should return collection", async () => {
     expect(getModelCollection(Models)).toBe("users");
@@ -143,6 +152,21 @@ describe("Update", () => {
       { test: 11, a: 999, id: id2 },
       { test: 12, a: 999, id: id3 },
     ]);
+  });
+
+  test("update with removal of optional value", async () => {
+    const ms = new Models(dbs);
+
+    const [{ id: id1 }] = (await new Models(dbs, [{ test: 77, a: 99 }]).store())
+      .contents;
+
+    await ms.load({ test: 77, a: 99 });
+    ms.contents.forEach((c) => (c.a = undefined));
+    await ms.update();
+    const newms = await new Models(dbs).load({ test: 77 });
+
+    expect(newms.contents).toMatchObject([{ test: 77, a: null, id: id1 }]);
+    expect(newms.contents[0].a).toBe(null);
   });
 
   test("update with nested obj", async () => {
@@ -271,6 +295,17 @@ describe("Update with concurrency check", () => {
   });
 
   test("updateWithConcurrencyCheckOn on just stored model", async () => {
+    const ms = await new Models(dbs, [{ test: 10, a: 99 }]).store();
+    ms.contents.forEach((c) => (c.a = 1011));
+    await ms.updateWithConcurrencyCheckOn(["test"]);
+    const newms = await new Models(dbs).load({ a: 1011 });
+
+    expect(newms.contents).toMatchObject([
+      { test: 10, a: 1011, id: ms.content.id },
+    ]);
+  });
+
+  test("updateWithConcurrencyCheckOn on just updated model", async () => {
     const ms = await new Models(dbs, [{ test: 10, a: 99 }]).store();
     ms.contents.forEach((c) => (c.a = 1011));
     await ms.updateWithConcurrencyCheckOn(["test"]);
@@ -572,8 +607,9 @@ describe("loadOneByKeys", () => {
       )
     ).rejects.toThrow(NotAllKeysGivenError);
     await expect(
-      new Models(dbs).loadOneByKeys({
+      new ModelsMultiKey(dbs).loadOneByKeys({
         id: [m1.contents[0].id, m1.contents[1].id],
+        test: [1, 2],
       })
     ).rejects.toThrow(NotUnique);
   });
