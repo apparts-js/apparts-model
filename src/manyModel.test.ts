@@ -318,6 +318,22 @@ describe("Update with concurrency check", () => {
     ]);
   });
 
+  test("updateWithConcurrencyCheckOn with optional key as unchanged", async () => {
+    const ms = await new Models(dbs, [{ test: 10 }]).store();
+    ms.contents.forEach((c) => (c.test = 1011));
+    await ms.updateWithConcurrencyCheckOn(["a"]);
+
+    // Check, that loaded model can also update with concurrency check
+    // on empty key
+    const newms = await new Models(dbs).load({ test: 1011 });
+    newms.contents.forEach((c) => (c.test = 1012));
+    await newms.updateWithConcurrencyCheckOn(["a"]);
+
+    expect(newms.contents).toMatchObject([
+      { test: 1012, a: null, id: ms.content.id },
+    ]);
+  });
+
   test("updateWithConcurrencyCheckOn fails, keys changed", async () => {
     const [{ id: id1 }] = (
       await new Models(dbs, [{ test: 10, a: 5000 }]).store()
