@@ -877,11 +877,13 @@ describe("Get public", () => {
         test: 100,
         derivedId: 3,
         derivedAsync: "test",
+        derivedObj: { prop: "str" },
       },
       {
         test: 100,
         derivedId: 4,
         derivedAsync: "test",
+        derivedObj: { prop: "str" },
       },
     ]);
     expect(publicVals1).toStrictEqual(publicVals2);

@@ -50,6 +50,7 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
   protected _collection: string;
   protected _types: Record<string, Type>;
   protected _schema: TypeSchema;
+  protected _schemaWODerived: Obj<Required, any>;
   protected _keys: string[];
   protected _autos: string[];
   protected _loadedKeys: unknown[][] | undefined;
@@ -66,6 +67,7 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
     this._collection = "";
     this._types = {};
     this._schema = {} as TypeSchema;
+    this._schemaWODerived = {} as TypeSchema;
 
     this._keys = [];
     this._autos = [];
@@ -306,7 +308,7 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
   protected setContentsAsLoadedFromContents(
     c: InferNotDerivedType<TypeSchema>[]
   ) {
-    this._contentsAsLoaded = array(this._schema).deepClone(c);
+    this._contentsAsLoaded = array(this._schemaWODerived).deepClone(c);
   }
 
   protected _ensureKeysSame(contents: InferNotDerivedType<TypeSchema>[]) {

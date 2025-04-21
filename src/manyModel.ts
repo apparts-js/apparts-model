@@ -1,5 +1,11 @@
 import { GenericQueriable } from "@apparts/db";
-import { InferNotDerivedType, Obj, Required } from "@apparts/types";
+import {
+  InferNotDerivedType,
+  Obj,
+  Required,
+  Schema,
+  obj,
+} from "@apparts/types";
 import { Model } from "./modelType";
 
 export type RecursivePartial<T> = {
@@ -31,6 +37,14 @@ export abstract class ManyModel<
     this._schema = getSchema();
     this._types = types;
 
+    const schemaWODerived: Record<string, Schema<any, any>> = {};
+    for (const key in this._schema.getKeys()) {
+      if (!this._schema.getKeys()[key].getType().derived) {
+        schemaWODerived[key] = this._schema.getKeys()[key];
+      }
+    }
+
+    this._schemaWODerived = obj(schemaWODerived);
     this._keys = Object.keys(types).filter((key) => types[key].key);
     this._autos = Object.keys(types).filter((key) => types[key].auto);
     const storedValues = Object.keys(types).filter(

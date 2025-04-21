@@ -30,6 +30,13 @@ export const derivedType = obj({
   derivedAsync: string()
     .public()
     .derived(async () => new Promise((res) => res("test"))),
+  derivedObj: obj({
+    prop: string(),
+  })
+    .public()
+    .derived((_) => ({
+      prop: "str",
+    })),
 });
 
 export const defaultType = obj({
