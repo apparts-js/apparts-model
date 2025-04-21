@@ -1,6 +1,6 @@
 {
   "name": "@apparts/model",
-  "version": "6.2.3",
+  "version": "6.2.4",
   "description": "A model for reading and writing to the database. It stores data.",
   "main": "build/index.js",
   "types": "build/index.d.ts",
