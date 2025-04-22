@@ -13,6 +13,7 @@ import {
   useModel,
   getModelCollection,
   getModelSchema,
+  ConstructorParams,
 } from "./index";
 import {
   TypeMissmatchError,
@@ -36,7 +37,18 @@ class ModelsNoAuto extends BaseModel<typeof noAutoType> {}
 useModel(ModelsNoAuto, { collection: "users3", typeSchema: noAutoType });
 class ModelsForeign extends BaseModel<typeof foreignType> {}
 useModel(ModelsForeign, { collection: "comment", typeSchema: foreignType });
-class ModelsDerived extends BaseModel<typeof derivedType> {}
+class ModelsDerived extends BaseModel<typeof derivedType> {
+  constructor(...args: ConstructorParams<typeof derivedType>) {
+    super(...args);
+    this.derived({
+      derivedAsync: async () => new Promise((res) => res("test")),
+      derivedId: (c) => c.id,
+      derivedObj: () => ({
+        prop: "str",
+      }),
+    });
+  }
+}
 useModel(ModelsDerived, { collection: "derived", typeSchema: derivedType });
 class ModelsWDefault extends BaseModel<typeof defaultType> {}
 useModel(ModelsWDefault, { collection: "wdefault", typeSchema: defaultType });
@@ -856,6 +868,61 @@ describe("Multi key", () => {
         })
       ).contents
     ).toMatchObject([{ email: "test1brr@test.de", name: "Fritz" }]);
+  });
+});
+
+describe("Derived", () => {
+  it("should reject wrongly typed derived functions", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    class ModelsDerived1 extends BaseModel<typeof derivedType> {
+      constructor(...args: ConstructorParams<typeof derivedType>) {
+        super(...args);
+        // @ts-expect-error too little
+        this.derived({});
+      }
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    class ModelsDerived2 extends BaseModel<typeof derivedType> {
+      constructor(...args: ConstructorParams<typeof derivedType>) {
+        super(...args);
+        this.derived({
+          derivedAsync: async () => new Promise((res) => res("test")),
+          derivedId: (c) => c.id,
+          derivedObj: () => ({
+            prop: "str",
+          }),
+        });
+      }
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    class ModelsDerived3 extends BaseModel<typeof derivedType> {
+      constructor(...args: ConstructorParams<typeof derivedType>) {
+        super(...args);
+        this.derived({
+          derivedAsync: async () => new Promise((res) => res("test")),
+          derivedId: (c) => c.id,
+          derivedObj: () => ({
+            prop: "str",
+          }),
+          // @ts-expect-error too much
+          test: () => 1,
+        });
+      }
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    class ModelsDerived4 extends BaseModel<typeof derivedType> {
+      constructor(...args: ConstructorParams<typeof derivedType>) {
+        super(...args);
+        this.derived({
+          derivedAsync: async () => new Promise((res) => res("test")),
+          // @ts-expect-error wrong type
+          derivedId: () => "str",
+          derivedObj: () => ({
+            prop: "str",
+          }),
+        });
+      }
+    }
   });
 });
 

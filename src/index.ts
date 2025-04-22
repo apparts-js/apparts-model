@@ -1,7 +1,11 @@
 import { Obj, Required } from "@apparts/types";
-import { ManyModel as BaseModel } from "./manyModel";
+import {
+  ConstructorContentParam,
+  ConstructorParams,
+  ManyModel as BaseModel,
+} from "./manyModel";
 export * from "./errors";
-export { BaseModel };
+export { BaseModel, ConstructorContentParam, ConstructorParams };
 
 type ModelOptions<TypeSchema extends Obj<Required, any>> = {
   typeSchema: TypeSchema;

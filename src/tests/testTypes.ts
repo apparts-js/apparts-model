@@ -23,20 +23,13 @@ export const foreignType = obj({
 export const derivedType = obj({
   id: int().semantic("id").key().auto(),
   test: int().public(),
-  derivedId: int()
-    .semantic("id")
-    .public()
-    .derived((c) => c.id),
-  derivedAsync: string()
-    .public()
-    .derived(async () => new Promise((res) => res("test"))),
+  derivedId: int().semantic("id").public().derived(),
+  derivedAsync: string().public().derived(),
   derivedObj: obj({
     prop: string(),
   })
     .public()
-    .derived((_) => ({
-      prop: "str",
-    })),
+    .derived(),
 });
 
 export const defaultType = obj({

@@ -44,6 +44,19 @@ type AllParams<TypeSchema extends Obj<Required, any>> = Partial<{
   [key in keyof InferType<TypeSchema>]: any;
 }>;
 
+type DerivedContent<TypeSchema extends Obj<Required, any>> = Omit<
+  InferType<TypeSchema>,
+  keyof InferNotDerivedType<TypeSchema>
+>;
+
+type DerivedFns<TypeSchema extends Obj<Required, any>> = {
+  [key in keyof DerivedContent<TypeSchema>]: (
+    c: InferNotDerivedType<TypeSchema>
+  ) =>
+    | DerivedContent<TypeSchema>[key]
+    | Promise<DerivedContent<TypeSchema>[key]>;
+};
+
 export abstract class Model<TypeSchema extends Obj<Required, any>> {
   protected _dbs: GenericQueriable;
   protected _fromDB: boolean;
@@ -59,6 +72,7 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
   protected _contents: InferNotDerivedType<TypeSchema>[];
   // *Deep* copy of contents. Used to check if contents have changed.
   protected _contentsAsLoaded: InferNotDerivedType<TypeSchema>[];
+  protected _derivedFns: DerivedFns<TypeSchema> | undefined;
 
   // TODO: Should contents really be Partial?
   constructor(dbs: GenericQueriable) {
@@ -102,6 +116,11 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
 
   get contents() {
     return this._contents;
+  }
+
+  public derived(derivedFns: DerivedFns<TypeSchema>) {
+    this._derivedFns = derivedFns;
+    return this;
   }
 
   async load(
@@ -560,8 +579,16 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
         const ret = { ...c };
         for (const key in types) {
           const { derived } = types[key];
-          if (derived) {
-            ret[key] = await derived(c, this);
+          if (derived && this._derivedFns?.[key]) {
+            ret[key] = await this._derivedFns[key](c);
+          } else if (derived) {
+            throw new UnexpectedModelError(
+              "[ManyModel] Not all derived keys have a function. Please check your call to model.derived",
+              {
+                key,
+                derived,
+              }
+            );
           }
         }
         return ret;

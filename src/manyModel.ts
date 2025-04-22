@@ -16,6 +16,14 @@ export type RecursivePartial<T> = {
     : T[P];
 };
 
+export type ConstructorContentParam<TypeSchema extends Obj<Required, any>> =
+  RecursivePartial<InferNotDerivedType<TypeSchema>>[];
+
+export type ConstructorParams<TypeSchema extends Obj<Required, any>> = [
+  dbs: GenericQueriable,
+  contents?: ConstructorContentParam<TypeSchema> | undefined
+];
+
 export abstract class ManyModel<
   TypeSchema extends Obj<Required, any>
 > extends Model<TypeSchema> {

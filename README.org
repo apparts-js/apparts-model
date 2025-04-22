@@ -7,7 +7,7 @@
 Create model classes like this:
 
 #+BEGIN_SRC js
-  import { useModel, BaseModel } from "@apparts/model";
+  import { useModel, BaseModel, ConstructorParams } from "@apparts/model";
   import * as types from "@apparts/types";
 
   const modelSchema = types.obj({
@@ -28,11 +28,10 @@ Create model classes like this:
     /* This field will not be persisted. It's value is derived from
        other values and will be generated on the fly. When using the
        getPublic method, while having derived values, you must first
-       call generateDerived. */
-      .derived(async (c, model) => {
-        /* c is the content of the model, model is the whole Model object */
-        return (await model._dbs._getSomeRelation()).text;
-      }),
+       call generateDerived. For fields with derived you must call the
+       derive method within the constructor of the model to specify
+       how the values are derived. */
+      .derived(),
     createdOn: types.time().public()
     /* This field will be set to the functions result, if the field is
        NULL. The function recieves the element as parameter. */
@@ -46,7 +45,20 @@ Create model classes like this:
        getPublic */
   });
 
-  export class User extends BaseModel<typeof modelSchema> {}
+  export class User extends BaseModel<typeof modelSchema> {
+
+    // Constructor not always needed. In this case we have to define the
+    // derived functions, though
+    constructor(...args: ConstructorParams<typeof derivedType>) {
+      super(...args);
+      this.derived({
+        derivedValue: async (c) => {
+          /* c is the content of the model */
+          return (await this._dbs._getSomeRelation()).text;
+        }
+      });
+    }
+  }
   // Activate the model:
   useModel(
     User,
@@ -115,6 +127,10 @@ _Functions:_
   values will be saved in =_derived=. This function must be called
   before =getPublic= is called, if derived values exist in the type.
 - =static getTypes()= :: Returns the type of the model
+- =derived(derivedFunctions)= :: Specifies how derived fields are
+  calculated. The parameter is an object where each key is the key of
+  a derived field, the value is a function that accepts the model
+  content and returns the derived value.
 
 ** Errors
 

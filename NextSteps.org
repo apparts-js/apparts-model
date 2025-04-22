@@ -202,22 +202,22 @@ const newUser = userRepo.new({ ... });
 
 
 
-Optimistic concurrency check (inspired by entity framework):
-- Only one column:
-  - One column X has a "ConcurrencyCheck" Flag
-  - Do your (side effect free) calculations, then, when done,
-    #+BEGIN_SRC sql
-    UPDATE <table with data> WHERE <where clause>
-       AND X = <Value of X when we started the calculation>;
-    #+END_SRC
-    - If 1 row is updated, all ok
-    - If 0 rows updated: Concurrency failure
-      + Do everything again (get data, process data, update)
-      + Reject change
-  - Also for =DELETE=
-- Whole table:
-  - Add a column "rowVersion" that has an ever increasing number
-  - Each change increases the number
-  - "rowVersion" is used as as if it had a "ConcurrencyCheck" Flag
-  - Only really viable, if all changing requests update the
-    "rowVersion" column, hence support from model needed
+- [X]  Optimistic concurrency check (inspired by entity framework):
+  - Only one column:
+    - One column X has a "ConcurrencyCheck" Flag
+    - Do your (side effect free) calculations, then, when done,
+      #+BEGIN_SRC sql
+      UPDATE <table with data> WHERE <where clause>
+         AND X = <Value of X when we started the calculation>;
+      #+END_SRC
+      - If 1 row is updated, all ok
+      - If 0 rows updated: Concurrency failure
+        + Do everything again (get data, process data, update)
+        + Reject change
+    - Also for =DELETE=
+  - Whole table:
+    - Add a column "rowVersion" that has an ever increasing number
+    - Each change increases the number
+    - "rowVersion" is used as as if it had a "ConcurrencyCheck" Flag
+    - Only really viable, if all changing requests update the
+      "rowVersion" column, hence support from model needed
