@@ -762,6 +762,36 @@ describe("lodeNone", () => {
   });
 });
 
+describe("count", () => {
+  test("count success", async () => {
+    await new Models(dbs, [
+      { test: 9991, a: 1 },
+      { test: 9991, a: 2 },
+      { test: 9991, a: 3 },
+    ]).store();
+
+    const m = new Models(dbs);
+
+    await expect(m.count({ test: 9991 })).resolves.toBe(3);
+    expect(m.contents.length).toBe(0);
+  });
+
+  test("loadOne fail (too many)", async () => {
+    await new Models(dbs, [
+      { test: 1, a: 2 },
+      { test: 1, a: 3 },
+    ]).store();
+
+    const m = new Models(dbs);
+    await expect(m.loadOne({ test: 1 })).rejects.toThrow(NotUnique);
+  });
+
+  test("loadOne fail (too few)", async () => {
+    const m = new Models(dbs);
+    await expect(m.loadOne({ test: 8 })).rejects.toThrow(NotFound);
+  });
+});
+
 describe("Multi key", () => {
   test("insert, multi key, no auto", async () => {
     await expect(

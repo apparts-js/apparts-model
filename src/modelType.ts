@@ -163,6 +163,14 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
     return this;
   }
 
+  async count(filter: AllParams<TypeSchema>) {
+    const count = await this._dbs
+      .collection(this._collection)
+      .find(filter)
+      .count();
+    return count;
+  }
+
   hasValidKeys(filter: Params) {
     if (
       // currently this has quadratic execution time but the keys

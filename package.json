@@ -34,7 +34,7 @@
   },
   "devDependencies": {
     "@apparts/config": "^1.2.3",
-    "@apparts/db": "^3.7.0",
+    "@apparts/db": "^3.8.1",
     "@apparts/error": "^1.0.3",
     "@apparts/types": "^10.0.0",
     "@tsconfig/node14": "^1.0.3",
@@ -46,7 +46,7 @@
     "eslint-config-prettier": "^8.5.0",
     "eslint-plugin-jest": "^26.8.2",
     "jest": "^28.1.3",
-    "pg": "^8.3.0",
+    "pg": "^8.15.5",
     "prettier": "^2.7.1",
     "rimraf": "^3.0.2",
     "ts-jest": "^28.0.7",
