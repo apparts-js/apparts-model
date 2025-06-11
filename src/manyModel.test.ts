@@ -62,12 +62,12 @@ afterAll(async () => {
 });
 
 afterEach(async () => {
-  await (await new ModelsForeign(dbs).load({})).deleteAll();
-  await (await new Models(dbs).load({})).deleteAll();
-  await (await new ModelsMultiKey(dbs).load({})).deleteAll();
-  await (await new ModelsNoAuto(dbs).load({})).deleteAll();
-  await (await new ModelsDerived(dbs).load({})).deleteAll();
-  await (await new ModelsWDefault(dbs).load({})).deleteAll();
+  await new ModelsForeign(dbs).delete({});
+  await new Models(dbs).delete({});
+  await new ModelsMultiKey(dbs).delete({});
+  await new ModelsNoAuto(dbs).delete({});
+  await new ModelsDerived(dbs).delete({});
+  await new ModelsWDefault(dbs).delete({});
 });
 
 describe("Static properties", () => {
@@ -461,6 +461,21 @@ describe("Delete", () => {
     const newms = await new Models(dbs).load({ test: 1 });
 
     expect(newms.contents.length).toBe(0);
+  });
+
+  test("delete", async () => {
+    await new Models(dbs, [
+      { test: 1, a: 1 },
+      { test: 1, a: 2 },
+      { test: 2, a: 2 },
+    ]).store();
+
+    await new Models(dbs).delete({ test: 1 });
+    const test1 = await new Models(dbs).load({ test: 1 });
+    const test2 = await new Models(dbs).load({ test: 2 });
+
+    expect(test1.contents.length).toBe(0);
+    expect(test2.contents.length).toBe(1);
   });
 });
 

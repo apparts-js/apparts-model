@@ -287,6 +287,11 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
     return this;
   }
 
+  async delete(filter: AllParams<TypeSchema>) {
+    const result = await this._dbs.collection(this._collection).remove(filter);
+    return result.rowCount;
+  }
+
   async getPublic() {
     return await this._getPublicWithTypes(this._contents);
   }
@@ -299,7 +304,7 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
     return this._checkTypes(this._contents);
   }
 
-  getWithDefaults(values: InferNotDerivedType<TypeSchema>[], key) {
+  getWithDefaults(values: InferNotDerivedType<TypeSchema>[], key: string) {
     return values.map((value) => ({
       ...value,
       [key]: fillInDefaultsStrict(this._types[key], value[key]),
