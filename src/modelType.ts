@@ -289,7 +289,7 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
 
   async delete(filter: AllParams<TypeSchema>) {
     const result = await this._dbs.collection(this._collection).remove(filter);
-    return result.rowCount;
+    return result.rowCount as number;
   }
 
   async getPublic() {

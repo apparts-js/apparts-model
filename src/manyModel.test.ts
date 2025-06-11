@@ -470,7 +470,9 @@ describe("Delete", () => {
       { test: 2, a: 2 },
     ]).store();
 
-    await new Models(dbs).delete({ test: 1 });
+    const result = await new Models(dbs).delete({ test: 1 });
+    expect(result).toBe(2);
+
     const test1 = await new Models(dbs).load({ test: 1 });
     const test2 = await new Models(dbs).load({ test: 2 });
 
