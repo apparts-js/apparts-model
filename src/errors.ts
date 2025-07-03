@@ -68,12 +68,17 @@ ${buildErrorMessage(more)}`
 }
 
 export class TypeMissmatchError extends Error {
-  constructor(model, collection, content, key, val) {
+  constructor(
+    collection: string,
+    content: unknown,
+    key: string,
+    explanation: string
+  ) {
     super(
       `[AnyModel] type-constraints not met in collection "${collection}". Content: ` +
         JSON.stringify(content, undefined, 2) +
         `
-Issue with key: "${key}", it has value ${JSON.stringify(val, undefined, 2)}`
+Issue with key: "${key}": ${explanation}`
     );
   }
 }

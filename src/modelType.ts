@@ -7,6 +7,7 @@ import {
 } from "@apparts/db";
 import {
   checkType,
+  explainCheck,
   fillInDefaultsStrict,
   InferNotDerivedType,
   InferPublicType,
@@ -559,17 +560,24 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
           continue;
         }
         const present = val !== undefined && val !== null;
-        if (
-          (!present && !this._types[key].optional) ||
-          (present && !checkType(val, this._types[key]))
-        ) {
+        if (!present && !this._types[key].optional) {
           throw new TypeMissmatchError(
-            "[AnyModel]",
             this._collection,
             contents,
             key,
-            val
+            "missing"
           );
+        }
+        if (present) {
+          const checkRes = explainCheck(val, this._types[key]);
+          if (checkRes !== false) {
+            throw new TypeMissmatchError(
+              this._collection,
+              contents,
+              key,
+              checkRes
+            );
+          }
         }
         if (!present) {
           c[key] = null;
