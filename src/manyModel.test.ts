@@ -1,4 +1,5 @@
 import { SETUPDB } from "./tests/databaseSetup";
+import * as types from "@apparts/types";
 import {
   type,
   multiKeyType,
@@ -6,6 +7,7 @@ import {
   foreignType,
   derivedType,
   defaultType,
+  optionalType,
 } from "./tests/testTypes";
 import { setup, teardown } from "./tests/database";
 import {
@@ -52,6 +54,12 @@ class ModelsDerived extends BaseModel<typeof derivedType> {
 useModel(ModelsDerived, { collection: "derived", typeSchema: derivedType });
 class ModelsWDefault extends BaseModel<typeof defaultType> {}
 useModel(ModelsWDefault, { collection: "wdefault", typeSchema: defaultType });
+
+class ModelsWOptional extends BaseModel<typeof optionalType> {}
+useModel(ModelsWOptional, {
+  collection: "optionalType",
+  typeSchema: optionalType,
+});
 
 let dbs: GenericDBS;
 beforeAll(async () => {
@@ -179,6 +187,22 @@ describe("Update", () => {
 
     expect(newms.contents).toMatchObject([{ test: 77, a: null, id: id1 }]);
     expect(newms.contents[0].a).toBe(null);
+  });
+
+  test("update with adding of optional value", async () => {
+    const ms = new ModelsWOptional(dbs);
+
+    const [{ id: id1 }] = (await new ModelsWOptional(dbs, [{}]).store())
+      .contents;
+
+    await ms.load({ id: id1 });
+    ms.contents.forEach((c) => (c.objOptional = { a: "test" }));
+    await ms.update();
+    const newms = await new ModelsWOptional(dbs).load({ id: id1 });
+
+    expect(newms.contents).toMatchObject([
+      { id: id1, objOptional: { a: "test" } },
+    ]);
   });
 
   test("update with nested obj", async () => {

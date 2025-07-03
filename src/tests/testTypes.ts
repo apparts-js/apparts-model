@@ -41,3 +41,10 @@ export const defaultType = obj({
     deepHasDefaultFn: string().default(() => "inner fn"),
   }),
 });
+
+export const optionalType = obj({
+  id: int().semantic("id").key().auto(),
+  objOptional: obj({
+    a: string(),
+  }).optional(),
+});

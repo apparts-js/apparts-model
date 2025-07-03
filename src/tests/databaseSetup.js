@@ -36,6 +36,11 @@ CREATE TABLE wdefault (
   id SERIAL PRIMARY KEY,
   "hasDefault" INT NOT NULL,
   "hasDefaultFn" INT NOT NULL,
-  "objWithDefault" JSON NOT NULL
+  "objWithDefault" JSONB NOT NULL
+);
+
+CREATE TABLE "optionalType" (
+  id SERIAL PRIMARY KEY,
+  "objOptional" JSONB
 );
 `;

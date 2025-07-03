@@ -58,6 +58,10 @@ type DerivedFns<TypeSchema extends Obj<Required, any>> = {
     | Promise<DerivedContent<TypeSchema>[key]>;
 };
 
+type PartialNullable<T> = {
+  [P in keyof T]?: T[P] | null;
+};
+
 export abstract class Model<TypeSchema extends Obj<Required, any>> {
   protected _dbs: GenericQueriable;
   protected _fromDB: boolean;
@@ -342,6 +346,13 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
     c: InferNotDerivedType<TypeSchema>[]
   ) {
     this._contentsAsLoaded = array(this._schemaWODerived).deepClone(c);
+    for (const item of this._contentsAsLoaded) {
+      for (const key in item) {
+        if (item[key] === null && this._types[key].optional) {
+          delete item[key];
+        }
+      }
+    }
   }
 
   protected _ensureKeysSame(contents: InferNotDerivedType<TypeSchema>[]) {
@@ -489,9 +500,9 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
   ) {
     const contentAsLoaded = this._findContentAsLoaded(c);
     const unchangedVals = unchanged.reduce((acc, key) => {
-      acc[key] = contentAsLoaded[key];
+      acc[key] = contentAsLoaded[key] ?? null;
       return acc;
-    }, {} as Partial<InferNotDerivedType<TypeSchema>>);
+    }, {} as PartialNullable<InferNotDerivedType<TypeSchema>>);
 
     const res = await t.collection(this._collection).updateOne(
       {
