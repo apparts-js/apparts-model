@@ -275,7 +275,7 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
   async deleteAll() {
     if (!this._fromDB) {
       throw new Error(
-        "[ManyModel] Refusing to deleteAll on model not loaded from DB"
+        "[ManyModel] Refusing to deleteAll on model not loaded from DB. Did you mean to use delete({})?"
       );
     }
     if (this.length() == 0) {
