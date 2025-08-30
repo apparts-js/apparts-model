@@ -410,23 +410,31 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
       }
     }
 
-    let success = true;
-    await this._dbs.transaction(async (t) => {
-      if (contents.length > 1) {
-        success = (
-          await Promise.all(
-            contents.map((c) =>
-              this._updateOneWithConcurrencyCheckOn(t, c, unchanged)
-            )
-          )
-        ).reduce((acc, val) => acc && val, true);
-      } else if (contents.length > 0) {
-        success = await this._updateOneWithConcurrencyCheckOn(
-          t,
-          contents[0],
+    if (this.isOne) {
+      const success = await this._updateOneWithConcurrencyCheckOn(
+        this._dbs,
+        contents[0],
+        unchanged
+      );
+      if (!success) {
+        throw new ConcurrencyError(
+          this._collection,
+          contents.map((c) => this._getKeyFilter(c)),
           unchanged
         );
       }
+      this.setContentsAsLoadedFromContents(this._contents);
+      return;
+    }
+
+    await this._dbs.transaction(async (t) => {
+      const success = (
+        await Promise.all(
+          contents.map((c) =>
+            this._updateOneWithConcurrencyCheckOn(t, c, unchanged)
+          )
+        )
+      ).reduce((acc, val) => acc && val, true);
       if (!success) {
         throw new ConcurrencyError(
           this._collection,
@@ -499,7 +507,7 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
   }
 
   protected async _updateOneWithConcurrencyCheckOn(
-    t: GenericTransaction,
+    t: GenericQueriable,
     c: InferNotDerivedType<TypeSchema>,
     unchanged: (keyof InferNotDerivedType<TypeSchema>)[]
   ) {

@@ -54,7 +54,6 @@ class ModelsDerived extends BaseModel<typeof derivedType> {
 useModel(ModelsDerived, { collection: "derived", typeSchema: derivedType });
 class ModelsWDefault extends BaseModel<typeof defaultType> {}
 useModel(ModelsWDefault, { collection: "wdefault", typeSchema: defaultType });
-
 class ModelsWOptional extends BaseModel<typeof optionalType> {}
 useModel(ModelsWOptional, {
   collection: "optionalType",
@@ -328,6 +327,20 @@ describe("Update with concurrency check", () => {
       { test: 11, a: 1001, id: id2 },
       { test: 12, a: 1001, id: id3 },
     ]);
+  });
+
+  test("updateWithConcurrencyCheckOn one", async () => {
+    const ms = new Models(dbs);
+
+    const [{ id: id1 }] = (
+      await new Models(dbs, [{ test: 10, a: 411 }]).store()
+    ).contents;
+    await ms.loadOne({ a: 411 });
+    ms.contents.forEach((c) => (c.a = 41001));
+    await ms.updateWithConcurrencyCheckOn(["test"]);
+    const newms = await new Models(dbs).load({ a: 41001 });
+
+    expect(newms.contents).toMatchObject([{ test: 10, a: 41001, id: id1 }]);
   });
 
   test("updateWithConcurrencyCheckOn on just stored model", async () => {
