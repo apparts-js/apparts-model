@@ -30,13 +30,13 @@
   "author": "Philipp Uhl",
   "license": "UNLICENSED",
   "peerDependencies": {
-    "@apparts/types": "^10.0.0"
+    "@apparts/types": "^10.0.7"
   },
   "devDependencies": {
     "@apparts/config": "^1.2.3",
     "@apparts/db": "^3.8.1",
     "@apparts/error": "^1.0.3",
-    "@apparts/types": "^10.0.0",
+    "@apparts/types": "^10.0.7",
     "@tsconfig/node14": "^1.0.3",
     "@types/jest": "^28.1.6",
     "@types/node": "^18.7.2",
