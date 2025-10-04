@@ -522,7 +522,7 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
         ...this._getKeyFilter(c),
         ...unchangedVals,
       },
-      this._removeAutos(c)
+      this._removeAutos(this._removeUnchanged(c))
     );
     if (res.rowCount !== 1) {
       return false;
