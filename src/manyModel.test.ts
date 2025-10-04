@@ -230,6 +230,36 @@ describe("Update", () => {
     ]);
   });
 
+  test("update only changed values", async () => {
+    const ms = new Models(dbs);
+
+    const [{ id: id1 }] = (
+      await new Models(dbs, [
+        {
+          a: 23942,
+          test: 8789,
+        },
+      ]).store()
+    ).contents;
+
+    await ms.load({ id: id1 });
+    ms.contents.forEach((c) => (c.test = 123456));
+
+    const ms2 = await new Models(dbs).load({ id: id1 });
+    ms2.contents.forEach((c) => (c.a = 23943));
+    await ms2.update();
+    await ms.update();
+
+    const newms = await new Models(dbs).load({ id: id1 });
+    expect(newms.contents).toMatchObject([
+      {
+        id: id1,
+        a: 23943,
+        test: 123456,
+      },
+    ]);
+  });
+
   test("update fails, keys changed", async () => {
     const [{ id: id1 }] = (
       await new Models(dbs, [{ test: 10, a: 4000 }]).store()
@@ -379,6 +409,36 @@ describe("Update with concurrency check", () => {
 
     expect(newms.contents).toMatchObject([
       { test: 1012, a: null, id: ms.content.id },
+    ]);
+  });
+
+  test("updateWithConcurrencyCheckOn only changed values", async () => {
+    const ms = new Models(dbs);
+
+    const [{ id: id1 }] = (
+      await new Models(dbs, [
+        {
+          a: 23942,
+          test: 8789,
+        },
+      ]).store()
+    ).contents;
+
+    await ms.load({ id: id1 });
+    ms.contents.forEach((c) => (c.test = 123456));
+
+    const ms2 = await new Models(dbs).load({ id: id1 });
+    ms2.contents.forEach((c) => (c.a = 23943));
+    await ms2.update();
+    await ms.updateWithConcurrencyCheckOn(["test"]);
+
+    const newms = await new Models(dbs).load({ id: id1 });
+    expect(newms.contents).toMatchObject([
+      {
+        id: id1,
+        a: 23943,
+        test: 123456,
+      },
     ]);
   });
 

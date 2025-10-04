@@ -517,12 +517,16 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
       return acc;
     }, {} as PartialNullable<InferNotDerivedType<TypeSchema>>);
 
+    const cleanedObj = this._removeAutos(this._removeUnchanged(c));
+    if (Object.keys(cleanedObj).length === 0) {
+      return true;
+    }
     const res = await t.collection(this._collection).updateOne(
       {
         ...this._getKeyFilter(c),
         ...unchangedVals,
       },
-      this._removeAutos(this._removeUnchanged(c))
+      cleanedObj
     );
     if (res.rowCount !== 1) {
       return false;
