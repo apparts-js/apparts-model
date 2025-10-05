@@ -1,3 +1,4 @@
+import * as types from "@apparts/types";
 import { SETUPDB } from "./tests/databaseSetup";
 import {
   type,
@@ -233,27 +234,39 @@ describe("Update", () => {
   test("update only changed values", async () => {
     const ms = new Models(dbs);
 
-    const [{ id: id1 }] = (
+    const [{ id: id1 }, { id: id2 }] = (
       await new Models(dbs, [
         {
           a: 23942,
           test: 8789,
         },
+        {
+          test: 8789,
+        },
       ]).store()
     ).contents;
 
-    await ms.load({ id: id1 });
+    await ms.load({ id: { op: "in", val: [id1, id2] } });
     ms.contents.forEach((c) => (c.test = 123456));
 
-    const ms2 = await new Models(dbs).load({ id: id1 });
+    const ms2 = await new Models(dbs).load({
+      id: { op: "in", val: [id1, id2] },
+    });
     ms2.contents.forEach((c) => (c.a = 23943));
     await ms2.update();
     await ms.update();
 
-    const newms = await new Models(dbs).load({ id: id1 });
+    const newms = await new Models(dbs).load({
+      id: { op: "in", val: [id1, id2] },
+    });
     expect(newms.contents).toMatchObject([
       {
         id: id1,
+        a: 23943,
+        test: 123456,
+      },
+      {
+        id: id2,
         a: 23943,
         test: 123456,
       },
@@ -415,27 +428,39 @@ describe("Update with concurrency check", () => {
   test("updateWithConcurrencyCheckOn only changed values", async () => {
     const ms = new Models(dbs);
 
-    const [{ id: id1 }] = (
+    const [{ id: id1 }, { id: id2 }] = (
       await new Models(dbs, [
         {
           a: 23942,
           test: 8789,
         },
+        {
+          test: 8789,
+        },
       ]).store()
     ).contents;
 
-    await ms.load({ id: id1 });
+    await ms.load({ id: { op: "in", val: [id1, id2] } });
     ms.contents.forEach((c) => (c.test = 123456));
 
-    const ms2 = await new Models(dbs).load({ id: id1 });
+    const ms2 = await new Models(dbs).load({
+      id: { op: "in", val: [id1, id2] },
+    });
     ms2.contents.forEach((c) => (c.a = 23943));
     await ms2.update();
     await ms.updateWithConcurrencyCheckOn(["test"]);
 
-    const newms = await new Models(dbs).load({ id: id1 });
+    const newms = await new Models(dbs).load({
+      id: { op: "in", val: [id1, id2] },
+    });
     expect(newms.contents).toMatchObject([
       {
         id: id1,
+        a: 23943,
+        test: 123456,
+      },
+      {
+        id: id2,
         a: 23943,
         test: 123456,
       },

@@ -487,6 +487,11 @@ export abstract class Model<TypeSchema extends Obj<Required, any>> {
       if (this._types[key].auto || this._types[key].derived) {
         continue;
       }
+      if (val[key] === null) {
+        // required to match null types. _checkType sets undefined
+        // values to null but loading from the db will give undefined
+        val[key] = undefined;
+      }
       if (
         this._schema.getKeys()[key].deepEqual(val[key], contentAsLoaded[key])
       ) {
